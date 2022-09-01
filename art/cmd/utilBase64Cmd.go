@@ -1,0 +1,45 @@
+/*
+  Artisan - © 2018-Present SouthWinds Tech Ltd - www.southwinds.io
+  Licensed under the Apache License, Version 2.0 at http://www.apache.org/licenses/LICENSE-2.0
+  Contributors to this project, hereby assign copyright in this code to the project,
+  to be licensed under the same terms as the rest of the code.
+*/
+
+package cmd
+
+import (
+	"encoding/base64"
+	"fmt"
+	"github.com/spf13/cobra"
+	"southwinds.dev/artisan/core"
+)
+
+// UtilBase64Cmd generates passwords
+type UtilBase64Cmd struct {
+	Cmd    *cobra.Command
+	decode *bool
+}
+
+func NewUtilBase64Cmd() *UtilBase64Cmd {
+	c := &UtilBase64Cmd{
+		Cmd: &cobra.Command{
+			Use:   "b64 [flags] STRING",
+			Short: "base 64 encode (or alternatively decode) a string",
+			Long:  `base 64 encode (or alternatively decode) a string`,
+			Args:  cobra.ExactArgs(1),
+		},
+	}
+	c.Cmd.Run = c.Run
+	c.decode = c.Cmd.Flags().BoolP("decode", "d", false, "if sets, decodes the string instead of encoding it")
+	return c
+}
+
+func (c *UtilBase64Cmd) Run(_ *cobra.Command, args []string) {
+	if *c.decode {
+		decoded, err := base64.StdEncoding.DecodeString(args[0])
+		core.CheckErr(err, "cannot decode string")
+		fmt.Printf("%s", string(decoded[:]))
+	} else {
+		fmt.Printf("%s", base64.StdEncoding.EncodeToString([]byte(args[0])))
+	}
+}

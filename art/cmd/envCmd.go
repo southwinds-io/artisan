@@ -1,0 +1,28 @@
+/*
+  Artisan - © 2018-Present SouthWinds Tech Ltd - www.southwinds.io
+  Licensed under the Apache License, Version 2.0 at http://www.apache.org/licenses/LICENSE-2.0
+  Contributors to this project, hereby assign copyright in this code to the project,
+  to be licensed under the same terms as the rest of the code.
+*/
+
+package cmd
+
+import (
+	"github.com/spf13/cobra"
+)
+
+// EnvCmd access environment file functions
+type EnvCmd struct {
+	Cmd *cobra.Command
+}
+
+func NewEnvCmd() *EnvCmd {
+	c := &EnvCmd{
+		Cmd: &cobra.Command{
+			Use:   "env",
+			Short: "extract environment information from packages and flows",
+			Long:  `extract environment information from packages and flows`,
+		},
+	}
+	return c
+}
