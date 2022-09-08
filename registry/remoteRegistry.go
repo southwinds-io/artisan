@@ -80,7 +80,7 @@ func (r *RemoteRegistry) List(quiet bool) {
 						tag,
 						a.Id[0:12],
 						a.Type,
-						toElapsedLabel(a.Created),
+						core.ToElapsedLabel(a.Created),
 						a.Size),
 					)
 					core.CheckErr(err, "failed to write output")

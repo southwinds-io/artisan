@@ -16,7 +16,6 @@ import (
 	"io"
 
 	"log"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -448,7 +447,7 @@ func (r *LocalRegistry) List(artHome string, extended bool) {
 						"<none>",
 						a.Id[0:12],
 						a.Type,
-						toElapsedLabel(a.Created),
+						core.ToElapsedLabel(a.Created),
 						a.Size,
 						author),
 					)
@@ -458,7 +457,7 @@ func (r *LocalRegistry) List(artHome string, extended bool) {
 						"<none>",
 						a.Id[0:12],
 						a.Type,
-						toElapsedLabel(a.Created),
+						core.ToElapsedLabel(a.Created),
 						a.Size),
 					)
 				}
@@ -471,7 +470,7 @@ func (r *LocalRegistry) List(artHome string, extended bool) {
 						tag,
 						a.Id[0:12],
 						a.Type,
-						toElapsedLabel(a.Created),
+						core.ToElapsedLabel(a.Created),
 						a.Size,
 						author),
 					)
@@ -481,7 +480,7 @@ func (r *LocalRegistry) List(artHome string, extended bool) {
 						tag,
 						a.Id[0:12],
 						a.Type,
-						toElapsedLabel(a.Created),
+						core.ToElapsedLabel(a.Created),
 						a.Size),
 					)
 				}
@@ -1217,7 +1216,7 @@ func (r *LocalRegistry) keyDestinationFolder(repoName string, repoGroup string, 
 	return destPath, prefix
 }
 
-// remove the files associated with an Package
+// remove the files associated with a Package
 func (r *LocalRegistry) removeFiles(pack *Package, artHome string) error {
 	// remove the zip file
 	err := os.Remove(fmt.Sprintf("%s/%s.zip", core.RegistryPath(artHome), pack.FileRef))
@@ -1226,45 +1225,6 @@ func (r *LocalRegistry) removeFiles(pack *Package, artHome string) error {
 	}
 	// remove the json file
 	return os.Remove(fmt.Sprintf("%s/%s.json", core.RegistryPath(artHome), pack.FileRef))
-}
-
-// returns the elapsed time until now in human friendly format
-func toElapsedLabel(rfc850time string) string {
-	created, err := time.Parse(time.RFC850, rfc850time)
-	if err != nil {
-		log.Fatal(err)
-	}
-	elapsed := time.Now().UTC().Sub(created.UTC())
-	seconds := elapsed.Seconds()
-	minutes := elapsed.Minutes()
-	hours := elapsed.Hours()
-	days := hours / 24
-	weeks := days / 7
-	months := weeks / 4
-	years := months / 12
-
-	if math.Trunc(years) > 0 {
-		return fmt.Sprintf("%d %s ago", int64(years), plural(int64(years), "year"))
-	} else if math.Trunc(months) > 0 {
-		return fmt.Sprintf("%d %s ago", int64(months), plural(int64(months), "month"))
-	} else if math.Trunc(weeks) > 0 {
-		return fmt.Sprintf("%d %s ago", int64(weeks), plural(int64(weeks), "week"))
-	} else if math.Trunc(days) > 0 {
-		return fmt.Sprintf("%d %s ago", int64(days), plural(int64(days), "day"))
-	} else if math.Trunc(hours) > 0 {
-		return fmt.Sprintf("%d %s ago", int64(hours), plural(int64(hours), "hour"))
-	} else if math.Trunc(minutes) > 0 {
-		return fmt.Sprintf("%d %s ago", int64(minutes), plural(int64(minutes), "minute"))
-	}
-	return fmt.Sprintf("%d %s ago", int64(seconds), plural(int64(seconds), "second"))
-}
-
-// turn label into plural if value is greater than one
-func plural(value int64, label string) string {
-	if value > 1 {
-		return fmt.Sprintf("%ss", label)
-	}
-	return label
 }
 
 // the fully qualified name of the json Seal file in the local localReg
