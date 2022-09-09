@@ -561,9 +561,6 @@ func (b *Builder) createSeal(profile *data.Profile) (*data.Seal, error) {
 	if profile.X != nil {
 		info.X = profile.X
 	}
-	if profile.Network != nil {
-		info.Network = profile.Network
-	}
 	// take the hash of the zip file and seal info combined
 	s := new(data.Seal)
 	// the seal needs the manifest to create a checksum
@@ -618,6 +615,7 @@ func (b *Builder) createSeal(profile *data.Profile) (*data.Seal, error) {
 				Description: fx.Description,
 				Input:       data.SurveyInputFromBuildFile(fx.Name, buildFile, false, true, merge.NewEnVarFromSlice(os.Environ()), b.artHome),
 				Runtime:     fx.Runtime,
+				Network:     fx.Network,
 			}
 			if fx.Credits > 0 {
 				f.Credits = fx.Credits

@@ -2,16 +2,19 @@ module southwinds.dev/artisan
 
 go 1.19
 
+replace southwinds.dev/os => ../os
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.1
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/uuid v1.3.0
+	github.com/mattn/go-shellwords v1.0.12
 	github.com/ohler55/ojg v1.12.5
 	github.com/pelletier/go-toml v1.9.4
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	gopkg.in/yaml.v2 v2.4.0
-	southwinds.dev/os v0.0.0-20220901065504-762d072c036a
+	southwinds.dev/os v0.0.0-00010101000000-000000000000
 )
 
 require (

@@ -25,8 +25,9 @@ type Function struct {
 	// defines any bindings to inputs required to run this function
 	Input *InputBinding `yaml:"input,omitempty"`
 	// the runtime to run this function
-	Runtime string `yaml:"runtime,omitempty"`
-	Credits int    `yaml:"credits,omitempty"`
+	Runtime string   `yaml:"runtime,omitempty"`
+	Credits int      `yaml:"credits,omitempty"`
+	Network *Network `json:"network,omitempty"`
 }
 
 // list the names of the inputs required by a function

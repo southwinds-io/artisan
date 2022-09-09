@@ -102,7 +102,6 @@ type Profile struct {
 	// merged target if existed, internal use only
 	MergedTarget string
 	X            []string `json:"x,omitempty"`
-	Network      *Network `json:"net,omitempty"`
 }
 
 // GetEnv gets a slice of string with each element containing key=value
@@ -182,6 +181,24 @@ func (b *BuildFile) Validate() (bool, error) {
 					if !b.Input.HasSecret(s) && !strings.Contains(s, "ART_REG_USER") && !strings.Contains(s, "ART_REG_PWD") {
 						return false, fmt.Errorf("function '%s' in build file '%s' has a Secret binding '%s' but not corresponding Secret definition has been defined in the build file Input section", fx.Name, b.path, s)
 					}
+				}
+			}
+		}
+		if fx.Network != nil {
+			if fx.Export == nil || !*fx.Export {
+				return false, fmt.Errorf("network definition found in non exported function '%s'", fx.Name)
+			}
+			if len(fx.Network.VendorId) == 0 {
+				return false, fmt.Errorf("id is missing in network definition for function %s", fx.Name)
+			}
+			for _, group := range fx.Network.Groups {
+				if len(strings.Split(group, ":")) != 4 {
+					return false, fmt.Errorf("group declaration in network definition for function %s is incorrect: '%s', it must have 4 sections separated by ':' such as 'NAME:TAGS:MIN:MAX'", fx.Name, group)
+				}
+			}
+			for _, rule := range fx.Network.Rules {
+				if len(strings.Split(rule, ":")) != 3 {
+					return false, fmt.Errorf("rule declaration in network definition for function %s is incorrect: '%s', it must have 3 sections separated by ':' such as 'NAME_FROM:NAME_TO:PROTOCOL/PORT'", fx.Name, rule)
 				}
 			}
 		}

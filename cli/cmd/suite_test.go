@@ -136,7 +136,7 @@ func TestRun(t *testing.T) {
 	// add the build file level environment variables
 	env := merge.NewEnVarFromSlice(os.Environ())
 	// execute the function
-	builder.Run("release-bin", "../", false, env)
+	builder.Run("do", ".", false, env)
 }
 
 func TestCurl(t *testing.T) {

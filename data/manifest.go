@@ -53,7 +53,6 @@ type Manifest struct {
 	RunPolicy  string    `json:"run_policy,omitempty"`
 	SignPolicy string    `json:"sign_policy,omitempty"`
 	X          []string  `json:"x,omitempty"`
-	Network    *Network  `json:"net,omitempty"`
 }
 
 func (m Manifest) Fx(name string) *FxInfo {
@@ -66,11 +65,9 @@ func (m Manifest) Fx(name string) *FxInfo {
 }
 
 type Network struct {
-	VendorId string `yaml:"vendor_id"`
-	Role     []Role `yaml:"role,omitempty"`
-	Overlap  bool   `yaml:"overlap,omitempty"`
-	Min      int    `yaml:"min,omitempty"`
-	Max      int    `yaml:"max,omitempty"`
+	VendorId string   `yaml:"id"`
+	Groups   []string `yaml:"groups"`
+	Rules    []string `yaml:"rules"`
 }
 
 type Role struct {
@@ -88,11 +85,12 @@ type Tag struct {
 
 // FxInfo exported function list
 type FxInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Input       *Input `json:"input,omitempty"`
-	Credits     int    `json:"credits,omitempty"`
-	Runtime     string `json:"runtime,omitempty"` // runtime image that should be used to execute functions in the package
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Input       *Input   `json:"input,omitempty"`
+	Credits     int      `json:"credits,omitempty"`
+	Runtime     string   `json:"runtime,omitempty"` // runtime image that should be used to execute functions in the package
+	Network     *Network `json:"network,omitempty"`
 }
 
 func (m *Manifest) ToMarkDownBytes(name string) []byte {

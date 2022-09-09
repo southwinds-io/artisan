@@ -492,6 +492,30 @@ func (r *LocalRegistry) List(artHome string, extended bool) {
 	core.CheckErr(err, "failed to flush output")
 }
 
+func (r *LocalRegistry) GetNetwork(packageName string, functionName string) (*data.Network, error) {
+	pkg, err := core.ParseName(packageName)
+	if err != nil {
+		return nil, err
+	}
+	p := r.FindPackageByName(pkg)
+	if p == nil {
+		return nil, fmt.Errorf("cannot find package '%s'", packageName)
+	}
+	seal, err := r.GetSeal(p)
+	if err != nil {
+		return nil, err
+	}
+	fx := seal.Manifest.Fx(functionName)
+	if fx == nil {
+		return nil, fmt.Errorf("function '%s' not found in package '%s'", functionName, packageName)
+	}
+	if fx.Network == nil {
+		// not a network function, then returns
+		return nil, nil
+	}
+	return nil, nil
+}
+
 // ListQ list (quiet) package IDs only
 func (r *LocalRegistry) ListQ() {
 	// get a table writer for the stdout

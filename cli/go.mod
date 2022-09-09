@@ -2,7 +2,10 @@ module southwinds.dev/artisan/cli
 
 go 1.19
 
-replace southwinds.dev/artisan => ../
+replace (
+	southwinds.dev/artisan => ../
+	southwinds.dev/os => ../../os
+)
 
 require (
 	github.com/spf13/cobra v1.3.0
