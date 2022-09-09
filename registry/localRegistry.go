@@ -513,7 +513,7 @@ func (r *LocalRegistry) GetNetwork(packageName string, functionName string) (*da
 		// not a network function, then returns
 		return nil, nil
 	}
-	return nil, nil
+	return fx.Network, nil
 }
 
 // ListQ list (quiet) package IDs only
