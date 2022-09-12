@@ -10,6 +10,7 @@ package data
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -68,6 +69,50 @@ type Network struct {
 	VendorId string   `yaml:"id"`
 	Groups   []string `yaml:"groups"`
 	Rules    []string `yaml:"rules"`
+}
+
+func (n *Network) IPGroups(ipList ...string) (map[string]*Group, error) {
+	if hasDuplicates(ipList) {
+		return nil, fmt.Errorf("IPs in list must be unique")
+	}
+	result := make(map[string]*Group)
+	ipIx := 0
+	total := 0
+	for _, group := range n.Groups {
+		parts := strings.Split(group, ":")
+		groupName := parts[0]
+		tags := strings.Split(parts[1], ",")
+		min, err := strconv.Atoi(parts[2])
+		if err != nil {
+			return nil, fmt.Errorf("invalid minimum value in network group '%s'", groupName)
+		}
+		max, err := strconv.Atoi(parts[3])
+		if err != nil {
+			return nil, fmt.Errorf("invalid maximum value in network group '%s'", groupName)
+		}
+		total = total + max
+		g := &Group{
+			Tags: tags,
+			IPs:  make([]string, 0),
+		}
+		for i := 0; i < min; i++ {
+			if len(ipList) <= ipIx {
+				return nil, fmt.Errorf("not enough IPs, need at least %d more", len(ipList)-ipIx+1)
+			}
+			g.IPs = append(g.IPs, ipList[ipIx])
+			result[groupName] = g
+			ipIx++
+		}
+	}
+	if total < len(ipList) {
+		return nil, fmt.Errorf("too many IPs, %d surplus IPs found", len(ipList)-total)
+	}
+	return result, nil
+}
+
+type Group struct {
+	Tags []string `yaml:"tags"`
+	IPs  []string `yaml:"ips"`
 }
 
 type Role struct {
@@ -130,4 +175,21 @@ func (m *Manifest) ToMarkDownBytes(name string) []byte {
 
 func format(content string) string {
 	return strings.Replace(content, "\n", "<br>", -1)
+}
+
+func removeDuplicateValues(strSlice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range strSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}
+
+func hasDuplicates(s []string) bool {
+	s2 := removeDuplicateValues(s)
+	return len(s) != len(s2)
 }
