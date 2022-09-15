@@ -50,21 +50,7 @@ func newGenericAPI(domain string, artHome string) *Api {
 	}
 }
 
-func (r *Api) UploadPackage(name *core.PackageName, packageRef string, zipfile multipart.File, jsonFile multipart.File, metaInfo *Package, user string, pwd string, https bool, artHome string) error {
-	// ensure files are properly closed
-	defer func(zipfile multipart.File) {
-		err := zipfile.Close()
-		if err != nil {
-			core.ErrorLogger.Printf("cannot close multipart package file: %s\n", err)
-		}
-	}(zipfile)
-	defer func(jsonFile multipart.File) {
-		err := jsonFile.Close()
-		if err != nil {
-			core.ErrorLogger.Printf("cannot close multipart seal file: %s\n", err)
-		}
-	}(jsonFile)
-
+func (r *Api) UploadPackage(name *core.PackageName, packageRef string, zipFile multipart.File, jsonFile multipart.File, metaInfo *Package, user string, pwd string, https bool, artHome string) error {
 	var b bytes.Buffer
 	writer := multipart.NewWriter(&b)
 	info, err := metaInfo.ToJson()
@@ -73,7 +59,7 @@ func (r *Api) UploadPackage(name *core.PackageName, packageRef string, zipfile m
 	core.CheckErr(err, "cannot add package meta file")
 	err = r.addFile(writer, "package-seal", fmt.Sprintf("%s.json", packageRef), jsonFile)
 	core.CheckErr(err, "cannot add seal file")
-	err = r.addFile(writer, "package-file", fmt.Sprintf("%s.zip", packageRef), zipfile)
+	err = r.addFile(writer, "package-file", fmt.Sprintf("%s.zip", packageRef), zipFile)
 	core.CheckErr(err, "cannot add package file")
 	// don't forget to close the multipart writer.
 	// If you don't close it, your request will be missing the terminating boundary.
