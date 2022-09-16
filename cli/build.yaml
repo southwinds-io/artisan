@@ -1,14 +1,14 @@
 ---
 labels:
-  author: skipper@southwinds.io
+  author: SouthWinds Tech Ltd
   application: Artisan Command Line Interface
-  description: The DevOps command line interface
+  description: The configuration package manager command line interface
   architecture: AMD64
 
 env:
   CGO_ENABLED: 0
   GOARCH: amd64
-  APP_VERSION: 1.0.0
+  APP_VERSION: 1.0.6
   BUILD_VERSION: ${APP_VERSION}-${ARTISAN_REF}
 
 profiles:
