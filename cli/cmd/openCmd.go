@@ -51,5 +51,5 @@ func (c *OpenCmd) Run(cmd *cobra.Command, args []string) {
 	// create a local registry
 	local := registry.NewLocalRegistry("")
 	// attempt to open from local registry
-	local.Open(name, c.credentials, path, nil)
+	core.CheckErr(local.Open(name, c.credentials, path, nil), "cannot open package")
 }

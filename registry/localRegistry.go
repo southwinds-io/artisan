@@ -825,14 +825,16 @@ func (r *LocalRegistry) loadSeal(sealFilename string) (*data.Seal, error) {
 	return seal, nil
 }
 
-func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetPath string, v func(n *core.PackageName, s *data.Seal, p string) error) {
+func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetPath string, v func(n *core.PackageName, s *data.Seal, p string) error) error {
 	var err error
 	if len(targetPath) == 0 {
 		targetPath = core.WorkDir()
 	} else {
 		if !filepath.IsAbs(targetPath) {
 			targetPath, err = filepath.Abs(targetPath)
-			core.CheckErr(err, "cannot convert open path to absolute path")
+			if err != nil {
+				return fmt.Errorf("cannot convert open path to absolute path: %s", err)
+			}
 		}
 	}
 	// fetch from local registry
@@ -844,43 +846,61 @@ func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetP
 	}
 	// get the package seal
 	seal, err := r.GetSeal(pkg)
-	core.CheckErr(err, "cannot read package seal")
+	if err != nil {
+		return fmt.Errorf("cannot read package seal: %s", err)
+	}
 	// now we are ready to open it
 	// if the target was already compressed (e.g. jar file, etc.) then it should not unzip it but rename it
 	// to ist original file extension
 	src := path.Join(core.RegistryPath(r.ArtHome), fmt.Sprintf("%s.zip", pkg.FileRef))
 	if _, err = os.Stat(targetPath); os.IsNotExist(err) {
 		err = os.MkdirAll(targetPath, os.ModePerm)
-		core.CheckErr(err, "cannot create path to open package: %s", targetPath)
+		if err != nil {
+			return fmt.Errorf("cannot create path to open package: %s, %s", targetPath, err)
+		}
 	}
 	zipTempFilePath := path.Join(targetPath, fmt.Sprintf("%s.zip", pkg.FileRef))
 	err = CopyFile(src, zipTempFilePath)
-	core.CheckErr(err, "cannot copy package to working folder")
 	defer func() {
 		_ = os.RemoveAll(zipTempFilePath)
 	}()
+	if err != nil {
+		return fmt.Errorf("cannot copy package to working folder: %s", err)
+	}
 	if v != nil {
-		core.CheckErr(v(name, seal, zipTempFilePath), "")
+		err = v(name, seal, zipTempFilePath)
+		if err != nil {
+			return err
+		}
 	}
 	// otherwise, unzip the target
 	err = unzip(zipTempFilePath, targetPath)
-	core.CheckErr(err, "cannot unzip package %s", fmt.Sprintf("%s.zip", pkg.FileRef))
+	if err != nil {
+		return fmt.Errorf("cannot unzip package %s.zip", pkg.FileRef)
+	}
 	// check if the target path is a folder
 	var info os.FileInfo
 	info, err = os.Stat(targetPath)
-	core.CheckErr(err, "cannot stat target path %s", targetPath)
+	if err != nil {
+		return fmt.Errorf("cannot stat target path %s", err)
+	}
 	// only get rid of the target folder if there is one
 	if info.IsDir() {
 		srcPath := path.Join(targetPath, seal.Manifest.Target)
 		info, err = os.Stat(srcPath)
-		core.CheckErr(err, "cannot stat source path %s", srcPath)
+		if err != nil {
+			return fmt.Errorf("cannot stat source path %s: %s", srcPath, err)
+		}
 		// if the source path is a folder
 		if info.IsDir() {
 			// unwrap the folder
 			err = MoveFolderContent(srcPath, targetPath)
-			core.CheckErr(err, "cannot move target folder content")
+			if err != nil {
+				return fmt.Errorf("cannot move target folder content: %s", err)
+			}
 		}
 	}
+	return nil
 }
 
 func (r *LocalRegistry) removePkg(pkg *Package, artHome string) error {

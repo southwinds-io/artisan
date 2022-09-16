@@ -677,11 +677,14 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 		path = core.ToAbs(path)
 	}
 	// open the package on the temp random path
-	local.Open(
+	err := local.Open(
 		name,
 		credentials,
 		path,
 		b.vProc)
+	if err != nil {
+		return err
+	}
 	a := local.FindPackageByName(name)
 	// get the package seal
 	seal, err := local.GetSeal(a)
