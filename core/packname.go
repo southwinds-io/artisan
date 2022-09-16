@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	regDomain = "artr.gdn"
-	regGroup  = "lib"
+	RegDomain = "artr.gdn"
+	RegGroup  = "lib"
 )
 
 // PackageName defines the name of a package following the format: domain/group/name:tag
@@ -95,16 +95,16 @@ func splitName(packageName string) (domain, group, name, tag string, err error) 
 		if isDomain(name) {
 			return "", "", "", "", fmt.Errorf("missing package group and name")
 		}
-		domain = regDomain
-		group = regGroup
+		domain = RegDomain
+		group = RegGroup
 		// it assumes the first part is the group and the second part is the name
 	case 2:
-		domain = regDomain
+		domain = RegDomain
 		group = parts[0]
 		// if the group is a domain insert the default group
 		if isDomain(group) {
 			domain = group
-			group = regGroup
+			group = RegGroup
 		}
 		name, tag, err = parseNameTag(parts[1])
 		if isDomain(name) {
@@ -124,7 +124,7 @@ func splitName(packageName string) (domain, group, name, tag string, err error) 
 		// if the domain part does not pass validation then assume it is part of the group
 		if !isDomain(domain) {
 			group = fmt.Sprintf("%s/%s", domain, group)
-			domain = regDomain
+			domain = RegDomain
 		}
 	// it assumes the first part is a domain, the last part is a name and the parts in the middle are the group
 	default:
@@ -135,7 +135,7 @@ func splitName(packageName string) (domain, group, name, tag string, err error) 
 		// if the domain part does not pass validation then assume it is part of the group
 		if !isDomain(domain) {
 			group = fmt.Sprintf("%s/%s", domain, group)
-			domain = regDomain
+			domain = RegDomain
 		}
 		if isDomain(name) {
 			return "", "", "", "", fmt.Errorf("the last portion of the package name %s should not be a domain", name)
