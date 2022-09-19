@@ -78,8 +78,7 @@ func RunApp(name *core.PackageName, credentials string, detached bool, path stri
 			return err
 		}
 	} else {
-		_, err = build.Exe(entryPath, path, merge.NewEnVarFromSlice(os.Environ()), false)
-		if err != nil {
+		if err = build.ExeStream(entryPath, path, merge.NewEnVarFromSlice(os.Environ()), false); err != nil {
 			return err
 		}
 	}

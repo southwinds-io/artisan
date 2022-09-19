@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mattn/go-shellwords"
+	"os"
 	"os/exec"
 	"runtime"
 	"southwinds.dev/artisan/core"
@@ -165,6 +166,46 @@ func Exe(cmd string, dir string, env *merge.Envar, interactive bool) (string, er
 	}
 
 	return outbuf.String(), err
+}
+
+func ExeStream(cmd string, dir string, env *merge.Envar, interactive bool) error {
+	if cmd == "" {
+		return errors.New("no command provided")
+	}
+	// create a command parser
+	p := shellwords.NewParser()
+	// parse the command line
+	cmdArr, err := p.Parse(cmd)
+	if err != nil {
+		return err
+	}
+	// if we are in windows
+	if runtime.GOOS == "windows" {
+		// prepend "cmd /C" to the command line
+		cmdArr = append([]string{"cmd", "/C"}, cmdArr...)
+		core.Debug("windows cmd => %s", cmdArr)
+	}
+	name := cmdArr[0]
+
+	var args []string
+	if len(cmdArr) > 1 {
+		args = cmdArr[1:]
+	}
+
+	args, _ = core.MergeEnvironmentVars(args, env.Vars, interactive)
+
+	// create the command to execute
+	command := exec.Command(name, args...)
+	// set the command working directory
+	command.Dir = dir
+	// set the command environment
+	command.Env = env.Slice()
+	// sends the command output and error streams to std
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+
+	// run the command
+	return command.Run()
 }
 
 // print the content of the reader to stdout
