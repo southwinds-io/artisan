@@ -18,6 +18,7 @@ func InitialiseRootCmd() *RootCmd {
 	tagCmd := NewTagCmd()
 	runCmd := NewRunCmd()
 	runCCmd := NewRunCCmd()
+	runACmd := NewRunACmd()
 	mergeCmd := NewMergeCmd()
 	pullCmd := NewPullCmd()
 	openCmd := NewOpenCmd()
@@ -37,6 +38,7 @@ func InitialiseRootCmd() *RootCmd {
 		tagCmd.Cmd,
 		runCmd.Cmd,
 		runCCmd.Cmd,
+		runACmd.Cmd,
 		mergeCmd.Cmd,
 		pullCmd.Cmd,
 		openCmd.cmd,
