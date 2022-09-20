@@ -78,12 +78,12 @@ func RunApp(name *core.PackageName, credentials string, detached, clean bool, pa
 		_, err = os.Stat(entryPath)
 		doesNotExist = os.IsNotExist(err)
 	}
-	core.Debug("entrypoint: %s\n", entryPath)
-	core.Debug("execution path: %s\n", path)
-	core.Debug("environment =>\n")
+	core.Debug("entrypoint: %s", entryPath)
+	core.Debug("execution path: %s", path)
+	core.Debug("environment =>")
 	env := os.Environ()
 	for index, value := range env {
-		core.Debug("  %d => %s\n", index, value)
+		core.Debug("  %d => %s", index, value)
 	}
 	if detached {
 		_, err = build.ExeAsync(entryPath, path, merge.NewEnVarFromSlice(env), false)
