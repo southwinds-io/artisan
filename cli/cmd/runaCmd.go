@@ -20,6 +20,7 @@ type RunACmd struct {
 	path        string
 	credentials string
 	detached    bool
+	clean       bool
 }
 
 func NewRunACmd() *RunACmd {
@@ -52,6 +53,7 @@ art runa localhost:8082/app/artr:latest
 	c.Cmd.Flags().StringVarP(&c.envFilename, "env", "e", ".env", "the environment file to load; e.g. --env=.env or -e=.env")
 	c.Cmd.Flags().StringVarP(&c.path, "path", "p", ".", "the path where application files should be placed")
 	c.Cmd.Flags().BoolVarP(&c.detached, "detached", "d", false, "runs the application in the background")
+	c.Cmd.Flags().BoolVarP(&c.clean, "clean", "c", false, "removes the application package from the local registry after opening it")
 	c.Cmd.Args = cobra.ExactArgs(1)
 	c.Cmd.Run = c.Run
 	return c
@@ -60,5 +62,5 @@ art runa localhost:8082/app/artr:latest
 func (c *RunACmd) Run(_ *cobra.Command, args []string) {
 	name, err := core.ParseName(args[0])
 	core.CheckErr(err, "invalid package name")
-	core.CheckErr(runner.RunApp(name, c.credentials, c.detached, c.path), "cannot run application")
+	core.CheckErr(runner.RunApp(name, c.credentials, c.detached, c.clean, c.path, nil), "cannot run application")
 }

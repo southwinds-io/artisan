@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func RunApp(name *core.PackageName, credentials string, detached bool, path string) error {
+func RunApp(name *core.PackageName, credentials string, detached, clean bool, path string, v func(n *core.PackageName, s *data.Seal, p string) error) error {
 	// gets a handle to the local registry
 	r := registry.NewLocalRegistry("")
 	// check if the package is there
@@ -59,8 +59,14 @@ func RunApp(name *core.PackageName, credentials string, detached bool, path stri
 	if _, err = os.Stat(path); os.IsNotExist(err) {
 		_ = os.MkdirAll(path, 0755)
 	}
-	if err = r.Open(name, credentials, path, nil); err != nil {
+	if err = r.Open(name, credentials, path, v); err != nil {
 		return err
+	}
+	if clean {
+		err = r.Remove([]string{name.FullyQualifiedNameTag()})
+		if err != nil {
+			return err
+		}
 	}
 	entryPath := filepath.Join(path, entryPoint)
 	_, err = os.Stat(entryPath)
