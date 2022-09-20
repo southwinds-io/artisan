@@ -78,13 +78,20 @@ func RunApp(name *core.PackageName, credentials string, detached, clean bool, pa
 		_, err = os.Stat(entryPath)
 		doesNotExist = os.IsNotExist(err)
 	}
+	core.Debug("entrypoint: %s\n", entryPath)
+	core.Debug("execution path: %s\n", path)
+	core.Debug("environment =>\n")
+	env := os.Environ()
+	for index, value := range env {
+		core.Debug("  %d => %s\n", index, value)
+	}
 	if detached {
-		_, err = build.ExeAsync(entryPath, path, merge.NewEnVarFromSlice(os.Environ()), false)
+		_, err = build.ExeAsync(entryPath, path, merge.NewEnVarFromSlice(env), false)
 		if err != nil {
 			return err
 		}
 	} else {
-		if err = build.ExeStream(entryPath, path, merge.NewEnVarFromSlice(os.Environ()), false); err != nil {
+		if err = build.ExeStream(entryPath, path, merge.NewEnVarFromSlice(env), false); err != nil {
 			return err
 		}
 	}

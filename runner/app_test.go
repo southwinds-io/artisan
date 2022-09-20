@@ -13,8 +13,8 @@ import (
 )
 
 func TestRunApp(t *testing.T) {
-	name, _ := core.ParseName("artr-basic")
-	if err := RunApp(name, "", true, "test"); err != nil {
+	name, _ := core.ParseName("app/source-mac")
+	if err := RunApp(name, "", true, false, "test", nil); err != nil {
 		t.Fatal(err.Error())
 	}
 }
