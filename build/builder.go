@@ -399,7 +399,7 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 			// execute the statement
 			err = execute(cmd, path, buildEnv, interactive)
 			if err != nil {
-				return fmt.Errorf("cannot execute command: %s", cmd)
+				return fmt.Errorf("cannot execute command %s: %s", cmd, err)
 			}
 		} else if hasFx, fxName := core.HasFunction(cmd); hasFx {
 			// executes the function
@@ -411,7 +411,7 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 			// execute the statement
 			err := execute(cmd, path, buildEnv, interactive)
 			if err != nil {
-				return fmt.Errorf("cannot execute command: %s", cmd)
+				return fmt.Errorf("cannot execute command %s: %s", cmd, err)
 			}
 		}
 	}

@@ -74,26 +74,35 @@ func ExeAsync(cmd string, dir string, env *merge.Envar, interactive bool) (strin
 	stderrReader := bufio.NewReader(stderr)
 
 	// start the execution of the command
-	if err := command.Start(); err != nil {
+	if err = command.Start(); err != nil {
 		return "", err
 	}
 
 	// asynchronous print output
 	sOut := &strings.Builder{}
-	go printInfo(stdoutReader, sOut)
+	go printOut(stdoutReader, sOut, false)
 	sErr := &strings.Builder{}
-	go printInfo(stderrReader, sErr)
+	go printOut(stderrReader, sErr, true)
 
 	// wait for the command to complete
 	if err = command.Wait(); err != nil {
+		core.Debug("ExecAsync() error: %s \n"+
+			"STDOUT: %s\n"+
+			"STDERR: %s", err, sOut.String(), sErr.String())
 		// only happens if the command exits with os.Exit(>0)
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			if _, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+			core.Debug("ExecAsync() error from os.Exit > 0 => %s", exitErr)
+			var v syscall.WaitStatus
+			if v, ok = exitErr.Sys().(syscall.WaitStatus); ok {
+				core.Debug("WaitStatus = %d", v)
 				return sOut.String(), fmt.Errorf("run command failed: '%s' (%s) - %s\n", cmd, exitMsg(exitErr.ExitCode()), sErr.String())
 			}
 		}
 		return sOut.String(), err
 	}
+	core.Debug("ExecAsync() successful: \n"+
+		"STDOUT: %s\n"+
+		"STDERR: %s", sOut.String(), sErr.String())
 	return sOut.String(), nil
 }
 
@@ -209,7 +218,7 @@ func ExeStream(cmd string, dir string, env *merge.Envar, interactive bool) error
 }
 
 // print the content of the reader to stdout
-func printInfo(reader *bufio.Reader, out *strings.Builder) {
+func printOut(reader *bufio.Reader, out *strings.Builder, isStdErr bool) {
 	for {
 		str, err := reader.ReadString('\n')
 		// if we are in nested execution scenarios there might be already log headers
@@ -217,8 +226,11 @@ func printInfo(reader *bufio.Reader, out *strings.Builder) {
 			// then prints directly to stdout to avoid repeating log headers
 			fmt.Print(str)
 		} else if len(str) > 0 {
-			// write to stdout adding log headers
-			core.InfoLogger.Print(str)
+			if isStdErr {
+				core.ErrorLogger.Print(str)
+			} else {
+				core.InfoLogger.Print(str)
+			}
 		}
 		// and collect the output for further use if there is one
 		if len(str) > 0 {
