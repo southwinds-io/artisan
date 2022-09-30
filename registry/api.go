@@ -321,8 +321,8 @@ func (r *Api) GetPackageInfo(group, name, id, user, pwd string, https bool) (*Pa
 	resp, err := r.client.Do(req)
 	if err != nil {
 		// if the error is a network connection error
-		if _, isNetworkError := err.(*url.Error); isNetworkError {
-			return nil, fmt.Errorf("the registry is not running")
+		if netErr, isNetworkError := err.(*url.Error); isNetworkError {
+			return nil, fmt.Errorf("network error: %s", netErr)
 		}
 		return nil, err
 	}
@@ -341,7 +341,9 @@ func (r *Api) GetPackageInfo(group, name, id, user, pwd string, https bool) (*Pa
 	if err != nil {
 		return nil, err
 	}
-	if !core.IsJSON(string(b)) {
+	if len(b) == 0 {
+		return nil, fmt.Errorf("the registry returned an empty payload")
+	} else if !core.IsJSON(string(b)) {
 		return nil, fmt.Errorf("the registry returned an invalid payload, as follows: \n%s\n", string(b[:]))
 	}
 	pack := new(Package)
@@ -522,8 +524,7 @@ func (r *Api) addFile(writer *multipart.Writer, fieldName, fileName string, file
 
 // Escape slashes in path variables
 func Escape(path string) string {
-	// NOTE: not sure why but need to escape twice for the request to work properly!
-	return url.PathEscape(url.PathEscape(path))
+	return url.PathEscape(path)
 }
 
 func fileNameWithoutExt(fileName string) string {
