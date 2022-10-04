@@ -474,7 +474,7 @@ func (r *Api) packageDigestURI(group, name, tag string, https bool) string {
 }
 
 func (r *Api) packageWithTagURI(group, name, tag string, https bool) string {
-	return fmt.Sprintf("%s/tag/%s", r.packageURI(group, name, https), tag)
+	return fmt.Sprintf("%s/tag/%s", r.packageURI(Escape(group), name, https), tag)
 }
 
 func (r *Api) packageInfoWithIdURI(group, name, id string, https bool) string {
