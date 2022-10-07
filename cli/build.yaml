@@ -22,7 +22,7 @@ profiles:
     env:
       GOOS: linux
     run:
-      - $(build-linux)
+      - $(build-linux-amd64)
     target: bin/linux/amd64
 
   - name: mac
