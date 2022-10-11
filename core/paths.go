@@ -48,10 +48,6 @@ func RegistryPath(path string) string {
 	return filepath.Join(HomeDir(), fmt.Sprintf(".%s", AppName))
 }
 
-func KeysPath(path string) string {
-	return filepath.Join(RegistryPath(path), "keys")
-}
-
 func FilesPath(path string) string {
 	return filepath.Join(RegistryPath(path), "files")
 }
