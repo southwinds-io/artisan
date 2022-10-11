@@ -20,6 +20,8 @@ import (
 	"strings"
 )
 
+const DefaultArtHome = ""
+
 // MoveFile use instead of os.Rename() to avoid issues moving a file whose source and destination paths are
 // on different file systems or drive
 // e.g. when running in Kubernetes by Tekton

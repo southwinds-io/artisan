@@ -8,10 +8,11 @@ package main
 
 import (
 	"southwinds.dev/artisan/cli/cmd"
+	"southwinds.dev/artisan/registry"
 )
 
 func main() {
-	rootCmd := cmd.InitialiseRootCmd(cmd.ArtHome)
+	rootCmd := cmd.InitialiseRootCmd(registry.DefaultArtHome)
 
 	// Execute adds all child commands to the root command and sets flags appropriately.
 	// This is called by main.main(). It only needs to happen once to the rootCmd.

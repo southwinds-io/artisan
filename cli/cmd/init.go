@@ -10,13 +10,12 @@ package cmd
 import (
 	"log"
 	"southwinds.dev/artisan/core"
+	"southwinds.dev/artisan/registry"
 )
-
-const ArtHome = ""
 
 func init() {
 	// ensure the registry folder structure is in place
-	if err := core.EnsureRegistryPath(ArtHome); err != nil {
+	if err := core.EnsureRegistryPath(registry.DefaultArtHome); err != nil {
 		log.Fatal("cannot run artisan without a local registry, its creation failed: %", err)
 	}
 }
