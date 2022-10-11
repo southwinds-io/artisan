@@ -15,22 +15,24 @@ import (
 
 // PruneCmd remove all dangling packages
 type PruneCmd struct {
-	Cmd *cobra.Command
+	Cmd  *cobra.Command
+	home string
 }
 
-func NewPruneCmd() *PruneCmd {
+func NewPruneCmd(artHome string) *PruneCmd {
 	c := &PruneCmd{
 		Cmd: &cobra.Command{
 			Use:   "prune",
 			Short: "remove all dangling packages",
 			Long:  `remove all dangling packages`,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	return c
 }
 
-func (b *PruneCmd) Run(cmd *cobra.Command, args []string) {
-	local := registry.NewLocalRegistry("")
+func (c *PruneCmd) Run(cmd *cobra.Command, args []string) {
+	local := registry.NewLocalRegistry(c.home)
 	core.CheckErr(local.Prune(), "")
 }

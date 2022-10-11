@@ -21,16 +21,18 @@ import (
 
 // LangFetchCmd installs it in the local registry
 type LangFetchCmd struct {
-	Cmd *cobra.Command
+	Cmd  *cobra.Command
+	home string
 }
 
-func NewLangFetchCmd() *LangFetchCmd {
+func NewLangFetchCmd(artHome string) *LangFetchCmd {
 	c := &LangFetchCmd{
 		Cmd: &cobra.Command{
 			Use:   "fetch [language code]",
 			Short: "fetches a language dictionary and installs it in the local registry",
 			Long:  `fetches a language dictionary and installs it in the local registry`,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	return c
@@ -38,22 +40,22 @@ func NewLangFetchCmd() *LangFetchCmd {
 
 func (c *LangFetchCmd) Run(_ *cobra.Command, args []string) {
 	if len(args) == 0 {
-		i18n.Raise("", i18n.ERR_INSUFFICIENT_ARGS)
+		i18n.Raise(c.home, i18n.ERR_INSUFFICIENT_ARGS)
 	}
 	if len(args) > 1 {
-		i18n.Raise("", i18n.ERR_TOO_MANY_ARGS)
+		i18n.Raise(c.home, i18n.ERR_TOO_MANY_ARGS)
 	}
 	// checks the lang path exists within the registry
 	core.LangExists("")
 	// try and fetch the language dictionary
 	url := fmt.Sprintf("https://raw.githubusercontent.com/southwinds-io/artlib/master/lang/%s_i18n.toml", args[0])
 	resp, err := http.Get(url)
-	i18n.Err("", err, i18n.ERR_CANT_DOWNLOAD_LANG, url)
+	i18n.Err(c.home, err, i18n.ERR_CANT_DOWNLOAD_LANG, url)
 	if resp.StatusCode != 200 {
-		i18n.Err("", fmt.Errorf(resp.Status), i18n.ERR_CANT_DOWNLOAD_LANG, url)
+		i18n.Err(c.home, fmt.Errorf(resp.Status), i18n.ERR_CANT_DOWNLOAD_LANG, url)
 	}
 	bodyBytes, err := io.ReadAll(resp.Body)
-	i18n.Err("", err, i18n.ERR_CANT_READ_RESPONSE)
-	err = os.WriteFile(path.Join(core.LangPath(""), fmt.Sprintf("%s_i18n.toml", args[0])), bodyBytes, os.ModePerm)
-	i18n.Err("", err, i18n.ERR_CANT_SAVE_FILE)
+	i18n.Err(c.home, err, i18n.ERR_CANT_READ_RESPONSE)
+	err = os.WriteFile(path.Join(core.LangPath(c.home), fmt.Sprintf("%s_i18n.toml", args[0])), bodyBytes, os.ModePerm)
+	i18n.Err(c.home, err, i18n.ERR_CANT_SAVE_FILE)
 }

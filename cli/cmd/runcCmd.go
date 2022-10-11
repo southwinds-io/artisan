@@ -17,18 +17,20 @@ import (
 // RunCCmd runs a function specified in the project's build.yaml file within an artisan runtime
 type RunCCmd struct {
 	Cmd         *cobra.Command
+	home        string
 	interactive *bool
 	envFilename string
 	network     string
 }
 
-func NewRunCCmd() *RunCCmd {
+func NewRunCCmd(artHome string) *RunCCmd {
 	c := &RunCCmd{
 		Cmd: &cobra.Command{
 			Use:   "runc [function name] [project path]",
 			Short: "runs the function commands specified in the project's build.yaml file within an artisan runtime container",
 			Long:  ``,
 		},
+		home: artHome,
 	}
 	c.interactive = c.Cmd.Flags().BoolP("interactive", "i", false, "switches on interactive mode which prompts the user for information if not provided")
 	c.Cmd.Flags().StringVarP(&c.envFilename, "env", "e", ".env", "the environment file to load; e.g. --env=.env or -e=.env")
@@ -47,7 +49,7 @@ func (c *RunCCmd) Run(cmd *cobra.Command, args []string) {
 		path = args[1]
 	}
 	// create an instance of the runner
-	run, err := runner.NewFromPath(path, "")
+	run, err := runner.NewFromPath(path, c.home)
 	core.CheckErr(err, "cannot initialise runner")
 	// load environment variables from file
 	// NOTE: do not pass any vars from the host to avoid clashing issues

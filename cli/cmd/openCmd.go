@@ -18,16 +18,18 @@ import (
 // OpenCmd opens a package in the specified path
 type OpenCmd struct {
 	cmd         *cobra.Command
+	home        string
 	credentials string
 }
 
-func NewOpenCmd() *OpenCmd {
+func NewOpenCmd(artHome string) *OpenCmd {
 	c := &OpenCmd{
 		cmd: &cobra.Command{
 			Use:   "open NAME[:TAG] [path]",
 			Short: "opens an package in the specified path",
 			Long:  ``,
 		},
+		home: artHome,
 	}
 	c.cmd.Run = c.Run
 	c.cmd.Flags().StringVarP(&c.credentials, "user", "u", "", "USER:PASSWORD server user and password")
@@ -49,7 +51,7 @@ func (c *OpenCmd) Run(cmd *cobra.Command, args []string) {
 	name, err := core.ParseName(nameTag)
 	i18n.Err("", err, i18n.ERR_INVALID_PACKAGE_NAME)
 	// create a local registry
-	local := registry.NewLocalRegistry("")
+	local := registry.NewLocalRegistry(c.home)
 	// attempt to open from local registry
 	core.CheckErr(local.Open(name, c.credentials, path, nil), "cannot open package")
 }

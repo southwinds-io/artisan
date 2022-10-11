@@ -17,13 +17,14 @@ import (
 // SpecExportCmd save one or more packages or images tar archives using a specification of artefacts to export in a yaml file
 type SpecExportCmd struct {
 	Cmd         *cobra.Command
+	home        string
 	srcCreds    string
 	targetCreds string
 	output      string
 	filter      string
 }
 
-func NewSpecExportCmd() *SpecExportCmd {
+func NewSpecExportCmd(artHome string) *SpecExportCmd {
 	c := &SpecExportCmd{
 		Cmd: &cobra.Command{
 			Use:   "export [FLAGS] SPEC-FILE-PATH",
@@ -60,6 +61,7 @@ Examples:
    art spec export -u REG_USER:REG_PWD -o s3s://endpoint/bucket -c S3_ID:S3_SECRET ./v1
 `,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	c.Cmd.Flags().StringVarP(&c.output, "output", "o", "", "the URI where the tar archive(s) will be saved; URI can be file system (absolute or relative path) or s3 bucket (s3:// or s3s:// using TLS)")
@@ -92,5 +94,6 @@ func (c *SpecExportCmd) Run(cmd *cobra.Command, args []string) {
 			SourceCreds:   c.srcCreds,
 			TargetCreds:   c.targetCreds,
 			Filter:        c.filter,
+			ArtHome:       c.home,
 		}), "cannot export spec")
 }

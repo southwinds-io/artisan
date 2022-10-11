@@ -16,12 +16,13 @@ import (
 // ListCmd list packages
 type ListCmd struct {
 	Cmd      *cobra.Command
+	home     string
 	quiet    bool
 	registry string
 	creds    string
 }
 
-func NewListCmd() *ListCmd {
+func NewListCmd(artHome string) *ListCmd {
 	c := &ListCmd{
 		Cmd: &cobra.Command{
 			Use:   "ls [FLAGS]",
@@ -35,6 +36,7 @@ art ls
 art ls -r localhost:8082 -u <user>:<pwd>
 `,
 		},
+		home: artHome,
 	}
 	c.Cmd.Flags().BoolVarP(&c.quiet, "quiet", "q", false, "only show numeric IDs")
 	c.Cmd.Flags().StringVarP(&c.registry, "registry", "r", "", "the domain name or IP of the remote registry (e.g. my-remote-registry); port can also be specified using a colon syntax")
@@ -45,16 +47,16 @@ art ls -r localhost:8082 -u <user>:<pwd>
 
 func (c *ListCmd) Run(_ *cobra.Command, _ []string) {
 	if len(c.registry) == 0 {
-		local := registry.NewLocalRegistry("")
+		local := registry.NewLocalRegistry(c.home)
 		if c.quiet {
 			local.ListQ()
 		} else {
-			local.List("", false)
+			local.List(c.home, false)
 		}
 	}
 	if len(c.registry) > 0 {
 		uname, pwd := core.RegUserPwd(c.creds)
-		remote, err := registry.NewRemoteRegistry(c.registry, uname, pwd, "")
+		remote, err := registry.NewRemoteRegistry(c.registry, uname, pwd, c.home)
 		core.CheckErr(err, "invalid registry name")
 		remote.List(c.quiet)
 	}

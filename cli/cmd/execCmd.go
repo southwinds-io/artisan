@@ -17,6 +17,7 @@ import (
 
 type ExeCCmd struct {
 	Cmd         *cobra.Command
+	home        string
 	interactive *bool
 	credentials string
 	path        string
@@ -24,7 +25,7 @@ type ExeCCmd struct {
 	network     string
 }
 
-func NewExeCCmd() *ExeCCmd {
+func NewExeCCmd(artHome string) *ExeCCmd {
 	c := &ExeCCmd{
 		Cmd: &cobra.Command{
 			Use:   "exec [flags] [package-name] [function-name]",
@@ -42,6 +43,7 @@ NOTE: exec always pulls the package from its registry as it is done within the r
      the package within the runtime - keys are accessible within the runtime using bind mounts
 `,
 		},
+		home: artHome,
 	}
 	c.interactive = c.Cmd.Flags().BoolP("interactive", "i", false, "switches on interactive mode which prompts the user for information if not provided")
 	c.Cmd.Flags().StringVarP(&c.credentials, "user", "u", "", "the artisan registry user and password; e.g. -u USER:PASSWORD or -u USER")
@@ -73,5 +75,5 @@ func (c *ExeCCmd) Run(cmd *cobra.Command, args []string) {
 	}
 	// launch a runtime to execute the function
 	err = run.ExeC(packageName, fxName, c.credentials, c.network, *c.interactive, env)
-	i18n.Err("", err, i18n.ERR_CANT_EXEC_FUNC_IN_PACKAGE, fxName, packageName)
+	i18n.Err(c.home, err, i18n.ERR_CANT_EXEC_FUNC_IN_PACKAGE, fxName, packageName)
 }

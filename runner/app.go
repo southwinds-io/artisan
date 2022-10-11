@@ -21,9 +21,9 @@ import (
 	"time"
 )
 
-func RunApp(name *core.PackageName, credentials string, detached, clean bool, path string, v func(n *core.PackageName, s *data.Seal, p string) error) error {
+func RunApp(name *core.PackageName, credentials string, detached, clean bool, path string, artHome string, v func(n *core.PackageName, s *data.Seal, p string) error) error {
 	// gets a handle to the local registry
-	r := registry.NewLocalRegistry("")
+	r := registry.NewLocalRegistry(artHome)
 	// check if the package is there
 	pkg := r.FindPackageByName(name)
 	// if it is not, try and pull it

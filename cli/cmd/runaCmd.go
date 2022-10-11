@@ -16,6 +16,7 @@ import (
 // RunACmd runs application in a runtime
 type RunACmd struct {
 	Cmd         *cobra.Command
+	home        string
 	envFilename string
 	path        string
 	credentials string
@@ -23,7 +24,7 @@ type RunACmd struct {
 	clean       bool
 }
 
-func NewRunACmd() *RunACmd {
+func NewRunACmd(artHome string) *RunACmd {
 	c := &RunACmd{
 		Cmd: &cobra.Command{
 			Use:   "runa [package-name]",
@@ -48,6 +49,7 @@ art runa localhost:8082/app/artr:latest
 - app:volume@VAR_NAME = defines a generic data volume mapped to VAR_NAME (e.g. VAR_NAME=/volume_0)
 `,
 		},
+		home: artHome,
 	}
 	c.Cmd.Flags().StringVarP(&c.credentials, "user", "u", "", "USER:PASSWORD artisan registry user and password")
 	c.Cmd.Flags().StringVarP(&c.envFilename, "env", "e", ".env", "the environment file to load; e.g. --env=.env or -e=.env")
@@ -62,5 +64,5 @@ art runa localhost:8082/app/artr:latest
 func (c *RunACmd) Run(_ *cobra.Command, args []string) {
 	name, err := core.ParseName(args[0])
 	core.CheckErr(err, "invalid package name")
-	core.CheckErr(runner.RunApp(name, c.credentials, c.detached, c.clean, c.path, nil), "cannot run application")
+	core.CheckErr(runner.RunApp(name, c.credentials, c.detached, c.clean, c.path, c.home, nil), "cannot run application")
 }

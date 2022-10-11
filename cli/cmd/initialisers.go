@@ -7,27 +7,27 @@
 
 package cmd
 
-func InitialiseRootCmd() *RootCmd {
+func InitialiseRootCmd(artHome string) *RootCmd {
 	rootCmd := NewRootCmd()
-	utilCmd := InitialiseUtilCommand()
-	specCmd := InitialiseSpecCommand()
+	utilCmd := InitialiseUtilCommand(artHome)
+	specCmd := InitialiseSpecCommand(artHome)
 	buildCmd := NewBuildCmd()
-	lsCmd := NewListCmd()
-	pushCmd := NewPushCmd()
-	rmCmd := NewRmCmd()
-	tagCmd := NewTagCmd()
-	runCmd := NewRunCmd()
-	runCCmd := NewRunCCmd()
-	runACmd := NewRunACmd()
+	lsCmd := NewListCmd(artHome)
+	pushCmd := NewPushCmd(artHome)
+	rmCmd := NewRmCmd(artHome)
+	tagCmd := NewTagCmd(artHome)
+	runCmd := NewRunCmd(artHome)
+	runCCmd := NewRunCCmd(artHome)
+	runACmd := NewRunACmd(artHome)
 	mergeCmd := NewMergeCmd()
-	pullCmd := NewPullCmd()
-	openCmd := NewOpenCmd()
-	flowCmd := InitialiseFlowCommand()
-	manifCmd := NewManifestCmd()
+	pullCmd := NewPullCmd(artHome)
+	openCmd := NewOpenCmd(artHome)
+	flowCmd := InitialiseFlowCommand(artHome)
+	manifCmd := NewManifestCmd(artHome)
 	exeCmd := NewExeCmd()
-	exeCCmd := NewExeCCmd()
+	exeCCmd := NewExeCCmd(artHome)
 	envCmd := InitialiseEnvCommand()
-	pruneCmd := NewPruneCmd()
+	pruneCmd := NewPruneCmd(artHome)
 	rootCmd.Cmd.AddCommand(
 		utilCmd.Cmd,
 		specCmd.Cmd,
@@ -52,7 +52,7 @@ func InitialiseRootCmd() *RootCmd {
 	return rootCmd
 }
 
-func InitialiseUtilCommand() *UtilCmd {
+func InitialiseUtilCommand(artHome string) *UtilCmd {
 	utilCmd := NewUtilCmd()
 	utilPwdCmd := NewUtilPwdCmd()
 	utilNameCmd := NewUtilNameCmd()
@@ -61,7 +61,7 @@ func InitialiseUtilCommand() *UtilCmd {
 	utilStampCmd := NewUtilStampCmd()
 	utilCurlCmd := NewUtilCurlCmd()
 	waitCmd := NewWaitCmd()
-	langCmd := InitialiseLangCommand()
+	langCmd := InitialiseLangCommand(artHome)
 	gitSyncCmd := NewGitSyncCmd()
 	serveCmd := NewServeCmd()
 	utilCmd.Cmd.AddCommand(
@@ -79,15 +79,15 @@ func InitialiseUtilCommand() *UtilCmd {
 	return utilCmd
 }
 
-func InitialiseSpecCommand() *SpecCmd {
+func InitialiseSpecCommand(artHome string) *SpecCmd {
 	specCmd := NewSpecCmd()
-	specExportCmd := NewSpecExportCmd()
-	specImportCmd := NewSpecImportCmd()
+	specExportCmd := NewSpecExportCmd(artHome)
+	specImportCmd := NewSpecImportCmd(artHome)
 	specDownCmd := NewSpecDownCmd()
 	specUpCmd := NewSpecUpCmd()
-	specPushCmd := NewSpecPushCmd()
+	specPushCmd := NewSpecPushCmd(artHome)
 	specInfoCmd := NewSpecInfoCmd()
-	specPullCmd := NewSpecPullCmd()
+	specPullCmd := NewSpecPullCmd(artHome)
 	specCmd.Cmd.AddCommand(specExportCmd.Cmd)
 	specCmd.Cmd.AddCommand(specImportCmd.Cmd)
 	specCmd.Cmd.AddCommand(specDownCmd.Cmd)
@@ -106,18 +106,18 @@ func InitialiseEnvCommand() *EnvCmd {
 	return envCmd
 }
 
-func InitialiseLangCommand() *LangCmd {
+func InitialiseLangCommand(artHome string) *LangCmd {
 	langCmd := NewLangCmd()
-	langFetchCmd := NewLangFetchCmd()
-	langUpdateCmd := NewLangUpdateCmd()
+	langFetchCmd := NewLangFetchCmd(artHome)
+	langUpdateCmd := NewLangUpdateCmd(artHome)
 	langCmd.Cmd.AddCommand(langFetchCmd.Cmd, langUpdateCmd.Cmd)
 	return langCmd
 }
 
-func InitialiseFlowCommand() *FlowCmd {
+func InitialiseFlowCommand(artHome string) *FlowCmd {
 	flowCmd := NewFlowCmd()
-	flowMergeCmd := NewFlowMergeCmd()
-	flowRunCmd := NewFlowRunCmd()
+	flowMergeCmd := NewFlowMergeCmd(artHome)
+	flowRunCmd := NewFlowRunCmd(artHome)
 	flowCmd.Cmd.AddCommand(flowMergeCmd.Cmd, flowRunCmd.Cmd)
 	return flowCmd
 }

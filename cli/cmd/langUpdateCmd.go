@@ -14,16 +14,18 @@ import (
 
 // LangUpdateCmd add missing entries in language dictionary
 type LangUpdateCmd struct {
-	Cmd *cobra.Command
+	Cmd  *cobra.Command
+	home string
 }
 
-func NewLangUpdateCmd() *LangUpdateCmd {
+func NewLangUpdateCmd(artHome string) *LangUpdateCmd {
 	c := &LangUpdateCmd{
 		Cmd: &cobra.Command{
 			Use:   "update [path/to/lang/file]",
 			Short: "add missing entries in language dictionary, added values in english",
 			Long:  `add missing entries in language dictionary, added values in english`,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	return c
@@ -31,11 +33,11 @@ func NewLangUpdateCmd() *LangUpdateCmd {
 
 func (c *LangUpdateCmd) Run(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
-		i18n.Raise("", i18n.ERR_INSUFFICIENT_ARGS)
+		i18n.Raise(c.home, i18n.ERR_INSUFFICIENT_ARGS)
 	}
 	if len(args) > 1 {
-		i18n.Raise("", i18n.ERR_TOO_MANY_ARGS)
+		i18n.Raise(c.home, i18n.ERR_TOO_MANY_ARGS)
 	}
 	err := i18n.Update(args[0])
-	i18n.Err("", err, i18n.ERR_CANT_UPDATE_LANG_FILE)
+	i18n.Err(c.home, err, i18n.ERR_CANT_UPDATE_LANG_FILE)
 }

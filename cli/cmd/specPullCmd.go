@@ -16,11 +16,12 @@ import (
 // SpecPullCmd pulls all artefacts defined in a spec
 type SpecPullCmd struct {
 	Cmd   *cobra.Command
+	home  string
 	creds string
 	user  string
 }
 
-func NewSpecPullCmd() *SpecPullCmd {
+func NewSpecPullCmd(artHome string) *SpecPullCmd {
 	c := &SpecPullCmd{
 		Cmd: &cobra.Command{
 			Use:   "pull [FLAGS] URI",
@@ -41,6 +42,7 @@ Example:
    art spec pull ./my-app/v1.0 -u reg_user:reg_pwd
 `,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	c.Cmd.Flags().StringVarP(&c.creds, "creds", "c", "", "the credentials used to retrieve the specification from an endpoint")
@@ -58,6 +60,7 @@ func (c *SpecPullCmd) Run(cmd *cobra.Command, args []string) {
 		TargetUri:   args[0],
 		SourceCreds: c.creds,
 		TargetCreds: c.user,
+		ArtHome:     c.home,
 	})
 	core.CheckErr(err, "cannot pull spec artefacts")
 }

@@ -14,17 +14,20 @@ import (
 )
 
 type TagCmd struct {
-	Cmd *cobra.Command
+	Cmd  *cobra.Command
+	home string
 }
 
-func NewTagCmd() *TagCmd {
+func NewTagCmd(artHome string) *TagCmd {
 	c := &TagCmd{
 		Cmd: &cobra.Command{
 			Use:     "tag",
 			Short:   "add a tag to an existing package",
 			Long:    `create a tag TARGET_PACKAGE that refers to SOURCE_PACKAGE`,
 			Example: `art tag SOURCE_PACKAGE[:TAG] TARGET_PACKAGE[:TAG]`,
-		}}
+		},
+		home: artHome,
+	}
 	c.Cmd.Run = c.Run
 	return c
 }
@@ -33,6 +36,6 @@ func (c *TagCmd) Run(cmd *cobra.Command, args []string) {
 	if len(args) != 2 {
 		core.RaiseErr("source and target package tags are required")
 	}
-	l := registry.NewLocalRegistry("")
+	l := registry.NewLocalRegistry(c.home)
 	core.CheckErr(l.Tag(args[0], args[1]), "cannot tag package")
 }

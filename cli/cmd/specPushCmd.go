@@ -17,6 +17,7 @@ import (
 // SpecPushCmd downloads the contents of a spec from a remote source
 type SpecPushCmd struct {
 	Cmd    *cobra.Command
+	home   string
 	images bool
 	tag    string
 	clean  bool
@@ -25,7 +26,7 @@ type SpecPushCmd struct {
 	logout bool
 }
 
-func NewSpecPushCmd() *SpecPushCmd {
+func NewSpecPushCmd(artHome string) *SpecPushCmd {
 	c := &SpecPushCmd{
 		Cmd: &cobra.Command{
 			Use:   "push [FLAGS] SPEC-FILE",
@@ -41,6 +42,7 @@ Example:
    art spec push ./my-release -i -t container.registry.io/apps
 `,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	c.Cmd.Flags().StringVarP(&c.user, "user", "u", "", "the credentials used to push to the artisan registry (or docker registry if -i is used)")
@@ -79,5 +81,6 @@ func (c *SpecPushCmd) Run(cmd *cobra.Command, args []string) {
 			Image:    c.images,
 			Clean:    c.clean,
 			Logout:   c.logout,
+			ArtHome:  c.home,
 		}), "cannot push spec")
 }

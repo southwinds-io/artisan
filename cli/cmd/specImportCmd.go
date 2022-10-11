@@ -16,11 +16,12 @@ import (
 // SpecImportCmd Import the contents from a tarball to create an artisan package in the local registry
 type SpecImportCmd struct {
 	Cmd    *cobra.Command
+	home   string
 	creds  string
 	filter string
 }
 
-func NewSpecImportCmd() *SpecImportCmd {
+func NewSpecImportCmd(artHome string) *SpecImportCmd {
 	c := &SpecImportCmd{
 		Cmd: &cobra.Command{
 			Use:   "import [FLAGS] URI",
@@ -37,6 +38,7 @@ Examples:
    art spec import s3s://my-s3-service.com/my-app/v1.0 -c S3_ID:S3_SECRET
 `,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	c.Cmd.Flags().StringVarP(&c.creds, "creds", "c", "", "the credentials used to retrieve the specification from an endpoint")
@@ -54,6 +56,7 @@ func (c *SpecImportCmd) Run(cmd *cobra.Command, args []string) {
 		TargetUri:   args[0],
 		TargetCreds: c.creds,
 		Filter:      c.filter,
+		ArtHome:     c.home,
 	})
 	core.CheckErr(err, "cannot import spec")
 }

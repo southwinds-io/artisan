@@ -16,6 +16,7 @@ import (
 // RmCmd remove local packages
 type RmCmd struct {
 	Cmd      *cobra.Command
+	home     string
 	all      bool
 	registry string
 	filter   string
@@ -23,7 +24,7 @@ type RmCmd struct {
 	dry      bool
 }
 
-func NewRmCmd() *RmCmd {
+func NewRmCmd(artHome string) *RmCmd {
 	c := &RmCmd{
 		Cmd: &cobra.Command{
 			Use:   "rm PACKAGE [PACKAGE...]",
@@ -51,6 +52,7 @@ art rm -r localhost:8081 -u <user>:<pwd> 4562fr 76dt54
 art rm -r localhost:8081 -u <user>:<pwd> $(art ls -r localhost:8081 -u <user>:<pwd> -q)
 `,
 		},
+		home: artHome,
 	}
 	c.Cmd.Flags().BoolVarP(&c.dry, "dry-run", "x", false, "when using a filter on a remote registry, shows a list of packages that would be deleted without actually deleting them, use it to test remove operations before actually performing the delete")
 	c.Cmd.Flags().BoolVarP(&c.all, "all", "a", false, "remove all packages")
@@ -77,7 +79,7 @@ func (c *RmCmd) Run(cmd *cobra.Command, args []string) {
 			core.RaiseErr("--filter flag is not valid for the local registry, can only be used when --registry is set")
 		}
 		//  create a local registry
-		local := registry.NewLocalRegistry("")
+		local := registry.NewLocalRegistry(c.home)
 		if c.all {
 			// prune dangling packages first
 			core.CheckErr(local.Prune(), "cannot prune packages")
@@ -88,7 +90,7 @@ func (c *RmCmd) Run(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		uname, pwd := core.RegUserPwd(c.creds)
-		remote, err := registry.NewRemoteRegistry(c.registry, uname, pwd, "")
+		remote, err := registry.NewRemoteRegistry(c.registry, uname, pwd, c.home)
 		core.CheckErr(err, "invalid remote")
 		// otherwise, it is a remote operation
 		if c.all {

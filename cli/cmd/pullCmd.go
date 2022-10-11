@@ -18,17 +18,19 @@ import (
 // PullCmd pull a package from a remote registry
 type PullCmd struct {
 	Cmd         *cobra.Command
+	home        string
 	credentials string
 	path        string
 }
 
-func NewPullCmd() *PullCmd {
+func NewPullCmd(artHome string) *PullCmd {
 	c := &PullCmd{
 		Cmd: &cobra.Command{
 			Use:   "pull [FLAGS] NAME[:TAG]",
 			Short: "downloads an package from the package registry",
 			Long:  ``,
 		},
+		home: artHome,
 	}
 	c.Cmd.Run = c.Run
 	c.Cmd.Flags().StringVarP(&c.credentials, "user", "u", "", "USER:PASSWORD server user and password")
@@ -46,7 +48,7 @@ func (c *PullCmd) Run(cmd *cobra.Command, args []string) {
 	packageName, err := core.ParseName(nameTag)
 	i18n.Err("", err, i18n.ERR_INVALID_PACKAGE_NAME)
 	// create a local registry
-	local := registry.NewLocalRegistry("")
+	local := registry.NewLocalRegistry(c.home)
 	// attempt pull from remote registry
 	local.Pull(packageName, c.credentials, true)
 }

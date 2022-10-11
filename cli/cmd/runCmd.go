@@ -18,17 +18,19 @@ import (
 // RunCmd runs the function specified in the project's build.yaml file
 type RunCmd struct {
 	Cmd         *cobra.Command
+	home        string
 	envFilename string
 	interactive *bool
 }
 
-func NewRunCmd() *RunCmd {
+func NewRunCmd(artHome string) *RunCmd {
 	c := &RunCmd{
 		Cmd: &cobra.Command{
 			Use:   "run [function name] [project path]",
 			Short: "runs the function commands specified in the project's build.yaml file",
 			Long:  ``,
 		},
+		home: artHome,
 	}
 	c.Cmd.Flags().StringVarP(&c.envFilename, "env", "e", ".env", "--env=.env or -e=.env; the path to a file containing environment variables to use")
 	c.interactive = c.Cmd.Flags().BoolP("interactive", "i", false, "switches on interactive mode which prompts the user for information if not provided")
@@ -45,7 +47,7 @@ func (c *RunCmd) Run(cmd *cobra.Command, args []string) {
 	if len(args) > 1 {
 		path = args[1]
 	}
-	builder := build.NewBuilder("")
+	builder := build.NewBuilder(c.home)
 	// add the build file level environment variables
 	env := merge.NewEnVarFromSlice(os.Environ())
 	// load vars from file

@@ -18,6 +18,7 @@ import (
 
 type FlowRunCmd struct {
 	Cmd           *cobra.Command
+	home          string
 	envFilename   string
 	credentials   string
 	interactive   *bool
@@ -27,13 +28,14 @@ type FlowRunCmd struct {
 	labels        []string
 }
 
-func NewFlowRunCmd() *FlowRunCmd {
+func NewFlowRunCmd(artHome string) *FlowRunCmd {
 	c := &FlowRunCmd{
 		Cmd: &cobra.Command{
 			Use:   "run [flags] [/path/to/flow.yaml] [runner name]",
 			Short: "merge and send a flow to a runner for execution",
 			Long:  `merge and send a flow to a runner for execution`,
 		},
+		home: artHome,
 	}
 	c.Cmd.Flags().StringVarP(&c.envFilename, "env", "e", ".env", "--env=.env or -e=.env; the path to a file containing environment variables to use")
 	c.Cmd.Flags().StringVarP(&c.credentials, "user", "u", "", "USER:PASSWORD server user and password")
@@ -49,9 +51,9 @@ func (c *FlowRunCmd) Run(cmd *cobra.Command, args []string) {
 		c.flowPath = core.ToAbsPath(args[0])
 		c.runnerName = args[1]
 	} else if len(args) < 1 {
-		i18n.Raise("", i18n.ERR_INSUFFICIENT_ARGS)
+		i18n.Raise(c.home, i18n.ERR_INSUFFICIENT_ARGS)
 	} else if len(args) > 1 {
-		i18n.Raise("", i18n.ERR_TOO_MANY_ARGS)
+		i18n.Raise(c.home, i18n.ERR_TOO_MANY_ARGS)
 	}
 	// add the build file level environment variables
 	env := merge.NewEnVarFromSlice(os.Environ())
@@ -61,7 +63,7 @@ func (c *FlowRunCmd) Run(cmd *cobra.Command, args []string) {
 	// merge with existing environment
 	env.Merge(env2)
 	// loads a flow from the path
-	f, err := flow.NewWithEnv(c.flowPath, c.buildFilePath, env, "")
+	f, err := flow.NewWithEnv(c.flowPath, c.buildFilePath, env, c.home)
 	core.CheckErr(err, "cannot load flow")
 	// add labels to the flow
 	f.AddLabels(c.labels)

@@ -21,6 +21,7 @@ import (
 // FlowMergeCmd merge a flow with env variables
 type FlowMergeCmd struct {
 	Cmd           *cobra.Command
+	home          string
 	envFilename   string
 	buildFilePath string
 	stdout        *bool
@@ -30,13 +31,14 @@ type FlowMergeCmd struct {
 	labels        []string
 }
 
-func NewFlowMergeCmd() *FlowMergeCmd {
+func NewFlowMergeCmd(artHome string) *FlowMergeCmd {
 	c := &FlowMergeCmd{
 		Cmd: &cobra.Command{
 			Use:   "merge [flags] [/path/to/flow_bare.yaml]",
 			Short: "fills in a bare flow by adding the required variables, secrets and keys",
 			Long:  `fills in a bare flow by adding the required variables, secrets and keys`,
 		},
+		home: artHome,
 	}
 	c.Cmd.Flags().StringVarP(&c.envFilename, "env", "e", ".env", "--env=.env or -e=.env; the path to a file containing environment variables to use")
 	c.Cmd.Flags().StringVarP(&c.buildFilePath, "build-file-path", "b", "", "--build-file-path=. or -b=.; the path to an artisan build.yaml file from which to pick required inputs")
@@ -68,7 +70,7 @@ func (c *FlowMergeCmd) Run(_ *cobra.Command, args []string) {
 	// merge with existing environment
 	env.Merge(env2)
 	// loads a bare flow from the path
-	f, err := flow.NewWithEnv(flowPath, c.buildFilePath, env, "")
+	f, err := flow.NewWithEnv(flowPath, c.buildFilePath, env, c.home)
 	core.CheckErr(err, "cannot load bare flow")
 	// add labels to the flow
 	f.AddLabels(c.labels)
