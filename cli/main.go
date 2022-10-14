@@ -11,16 +11,15 @@ import (
 	"log"
 	"southwinds.dev/artisan/cli/cmd"
 	"southwinds.dev/artisan/core"
-	"southwinds.dev/artisan/registry"
 )
 
 func main() {
 	// ensure the registry folder structure is in place
-	if err := core.EnsureRegistryPath(registry.DefaultArtHome); err != nil {
+	if err := core.EnsureRegistryPath(core.ArtDefaultHome); err != nil {
 		log.Fatal("cannot run artisan without a local registry, its creation failed: %", err)
 	}
 
-	rootCmd := cmd.InitialiseRootCmd(registry.DefaultArtHome)
+	rootCmd := cmd.InitialiseRootCmd(core.ArtDefaultHome)
 
 	// Execute adds all child commands to the root command and sets flags appropriately.
 	// This is called by main.main(). It only needs to happen once to the rootCmd.

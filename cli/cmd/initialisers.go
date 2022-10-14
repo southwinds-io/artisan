@@ -24,7 +24,7 @@ func InitialiseRootCmd(artHome string) *RootCmd {
 	openCmd := NewOpenCmd(artHome)
 	flowCmd := InitialiseFlowCommand(artHome)
 	manifCmd := NewManifestCmd(artHome)
-	exeCmd := NewExeCmd()
+	exeCmd := NewExeCmd(artHome)
 	exeCCmd := NewExeCCmd(artHome)
 	envCmd := InitialiseEnvCommand()
 	pruneCmd := NewPruneCmd(artHome)

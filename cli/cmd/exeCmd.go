@@ -19,6 +19,7 @@ import (
 // ExeCmd executes an exported function
 type ExeCmd struct {
 	cmd           *cobra.Command
+	home          string
 	interactive   *bool
 	credentials   string
 	path          string
@@ -26,13 +27,14 @@ type ExeCmd struct {
 	preserveFiles *bool
 }
 
-func NewExeCmd() *ExeCmd {
+func NewExeCmd(artHome string) *ExeCmd {
 	c := &ExeCmd{
 		cmd: &cobra.Command{
 			Use:   "exe [package name] [function]",
 			Short: "runs a function within a package on the current host",
 			Long:  `runs a function within a package on the current host`,
 		},
+		home: artHome,
 	}
 	c.interactive = c.cmd.Flags().BoolP("interactive", "i", false, "switches on interactive mode which prompts the user for information if not provided")
 	c.cmd.Flags().StringVarP(&c.credentials, "user", "u", "", "USER:PASSWORD server user and password")
@@ -52,7 +54,7 @@ func (c *ExeCmd) Run(cmd *cobra.Command, args []string) {
 		function = args[1]
 	)
 	// get a builder handle
-	builder := build.NewBuilder("")
+	builder := build.NewBuilder(c.home)
 	name, err := core.ParseName(pack)
 	i18n.Err("", err, i18n.ERR_INVALID_PACKAGE_NAME)
 	// add the build file level environment variables

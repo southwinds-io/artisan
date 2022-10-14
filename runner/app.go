@@ -41,7 +41,14 @@ func RunApp(name *core.PackageName, credentials string, detached, clean bool, pa
 	}
 	// the package type must be declared as "content/app" for the runner to attempt to run the app
 	if !strings.EqualFold(seal.Manifest.Type, "content/app") {
-		return fmt.Errorf("cannot run app in package '%s' as it is not of type 'content/app'", name.FullyQualifiedNameTag())
+		// if there is an entry point
+		if len(seal.Manifest.Labels["app:entrypoint"]) > 0 {
+			// then it is an app package and return error
+			return fmt.Errorf("cannot run app in package '%s' as it is not of type 'content/app'", name.FullyQualifiedNameTag())
+		} else {
+			// if no entrypoint is found, it is an automation package so run it and return
+			return runAutomationPackage(name, "fx_here", "source_here", credentials, detached, clean, path, artHome, v)
+		}
 	}
 	// the manifest must declare an entry point for the app
 	entryPoint := getEntryPoint(seal.Manifest)
@@ -166,6 +173,51 @@ func assignVolumeVars(manifest *data.Manifest) error {
 				return fmt.Errorf("invalid volume number '%s': %s", value, err)
 			}
 			if err = os.Setenv(volumeVar, fmt.Sprintf("/volume_%d", volumeNumber)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func runAutomationPackage(name *core.PackageName, packageFx, packageSource, credentials string, detached, clean bool, path string, artHome string, v func(n *core.PackageName, s *data.Seal, p string) error) error {
+	core.RaiseErr("automation package run is not implemented")
+	// if a package name has been provided
+	if name != nil {
+		// if a package  source  has been provided
+		if len(packageSource) > 0 {
+			switch strings.ToLower(packageSource) {
+			case "create":
+				// remove all files and subdirectories
+				if err := removeSubDirs("/workspace/source"); err != nil {
+					return err
+				}
+				builder := build.NewBuilder(core.ArtDefaultHome)
+				builder.Execute(name, packageFx, credentials, false, "/workspace/source", true, nil)
+			case "merge":
+			case "read":
+			}
+		}
+	}
+	return nil
+}
+
+func removeSubDirs(path string) error {
+	dirs, err := os.ReadDir(path)
+	if err != nil {
+		return err
+	}
+	for _, dir := range dirs {
+		path, err := filepath.Abs(dir.Name())
+		if err != nil {
+			return err
+		}
+		if dir.IsDir() {
+			if err := os.RemoveAll(path); err != nil {
+				return err
+			}
+		} else {
+			if err := os.Remove(path); err != nil {
 				return err
 			}
 		}

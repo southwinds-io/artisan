@@ -34,33 +34,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const (
-	ArtDebug       = "ART_DEBUG"
-	ArtPackageName = "ART_PACKAGE_NAME"
-	ArtFxName      = "ART_FX_NAME"
-
-	// ArtRegUser the name of the env variable that holds the artisan registry user to authenticate with a remote registry
-	// when registry related commands are executed and no specific credentials are provided via command flag
-	ArtRegUser = "ART_REG_USER"
-	// ArtRegPassword the name of the env variable that holds the artisan registry password to authenticate with a remote registry
-	// when registry related commands are executed and no specific credentials are provided via command flag
-	ArtRegPassword = "ART_REG_PWD"
-)
-
-var (
-	WarningLogger *log.Logger
-	InfoLogger    *log.Logger
-	ErrorLogger   *log.Logger
-	DebugLogger   *log.Logger
-)
-
-func init() {
-	InfoLogger = log.New(os.Stdout, "ART INFO: ", log.Ldate|log.Ltime|log.Lmsgprefix|log.LUTC|log.Lmicroseconds)
-	WarningLogger = log.New(os.Stdout, "ART WARNING: ", log.Ldate|log.Ltime|log.Lmsgprefix|log.LUTC|log.Lmicroseconds)
-	ErrorLogger = log.New(os.Stderr, "ART ERROR: ", log.Ldate|log.Ltime|log.Lmsgprefix|log.LUTC|log.Lmicroseconds)
-	DebugLogger = log.New(os.Stdout, "ART DEBUG: ", log.Ldate|log.Ltime|log.Lmsgprefix|log.LUTC|log.Lmicroseconds)
-}
-
 // ToAbs converts the path to absolute path
 func ToAbs(path string) string {
 	if !filepath.IsAbs(path) {
