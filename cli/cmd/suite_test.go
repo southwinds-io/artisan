@@ -38,7 +38,7 @@ func TestExeC(t *testing.T) {
 func TestExe(t *testing.T) {
 	packageName, err := core.ParseName("test")
 	fxName := "t1"
-	builder := build.NewBuilder(ArtHome)
+	builder := build.NewBuilder(core.ArtDefaultHome)
 	core.CheckErr(err, "cannot initialise builder")
 	env, err := merge.NewEnVarFromFile(".env")
 	if err != nil {
@@ -51,18 +51,18 @@ func TestExe(t *testing.T) {
 
 func TestBuild(t *testing.T) {
 	packageName, _ := core.ParseName("test")
-	builder := build.NewBuilder(ArtHome)
+	builder := build.NewBuilder(core.ArtDefaultHome)
 	builder.Build(".", "", "", packageName, "", false, false, "")
 }
 
 func TestRunC(t *testing.T) {
-	run, err := runner.NewFromPath(".", ArtHome)
+	run, err := runner.NewFromPath(".", core.ArtDefaultHome)
 	core.CheckErr(err, "cannot initialise runner")
 	err = run.RunC("deploy", false, merge.NewEnVarFromSlice([]string{}), "")
 }
 
 func TestPush(t *testing.T) {
-	reg := registry.NewLocalRegistry(ArtHome)
+	reg := registry.NewLocalRegistry(core.ArtDefaultHome)
 	name, err := core.ParseName("localhost:8080/lib/test")
 	if err != nil {
 		t.FailNow()
@@ -75,7 +75,7 @@ func TestPush(t *testing.T) {
 }
 
 func TestPull(t *testing.T) {
-	reg := registry.NewLocalRegistry(ArtHome)
+	reg := registry.NewLocalRegistry(core.ArtDefaultHome)
 	name, err := core.ParseName("localhost:8082/tools/artisan")
 	if err != nil {
 		t.FailNow()
@@ -84,13 +84,13 @@ func TestPull(t *testing.T) {
 }
 
 func TestRLs(t *testing.T) {
-	reg, _ := registry.NewRemoteRegistry("localhost:8080", "admin", "adm1n", ArtHome)
+	reg, _ := registry.NewRemoteRegistry("localhost:8080", "admin", "adm1n", core.ArtDefaultHome)
 	reg.List(false)
 }
 
 func TestVars(t *testing.T) {
 	env, _ := merge.NewEnVarFromFile(".env")
-	builder := build.NewBuilder(ArtHome)
+	builder := build.NewBuilder(core.ArtDefaultHome)
 	builder.Run("test", ".", false, env)
 }
 
@@ -132,7 +132,7 @@ func checkErr(err error, t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	builder := build.NewBuilder(ArtHome)
+	builder := build.NewBuilder(core.ArtDefaultHome)
 	// add the build file level environment variables
 	env := merge.NewEnVarFromSlice(os.Environ())
 	// execute the function
@@ -158,7 +158,7 @@ func TestSave(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r := registry.NewLocalRegistry(ArtHome)
+	r := registry.NewLocalRegistry(core.ArtDefaultHome)
 	err = r.ExportPackage(names, "", "./export", "")
 	if err != nil {
 		t.Error(err)
@@ -167,7 +167,7 @@ func TestSave(t *testing.T) {
 
 func TestImport(t *testing.T) {
 	// create a local registry
-	r := registry.NewLocalRegistry(ArtHome)
+	r := registry.NewLocalRegistry(core.ArtDefaultHome)
 	// import the tar archive(s)
 	err := r.Import([]string{"../archive.tar"}, "", nil)
 	if err != nil {
@@ -176,7 +176,7 @@ func TestImport(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	r := registry.NewLocalRegistry(ArtHome)
+	r := registry.NewLocalRegistry(core.ArtDefaultHome)
 	p := r.AllPackages()
 	for _, s := range p {
 		fmt.Println(s)
