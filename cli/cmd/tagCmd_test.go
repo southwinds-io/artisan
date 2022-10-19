@@ -18,7 +18,7 @@ import (
 // and the existing tag is renamed so that there is no dangling packages
 func TestTagV1ToLatestExist(t *testing.T) {
 	// pre-conditions
-	reg := registry.NewLocalRegistry(ArtHome)
+	reg := registry.NewLocalRegistry(core.ArtDefaultHome)
 	// cleanup
 	testLatest, _ := core.ParseName("test:latest")
 	testV1, _ := core.ParseName("test:V1")
@@ -26,7 +26,7 @@ func TestTagV1ToLatestExist(t *testing.T) {
 	// TODO: ensure all packages are removed
 	reg.Remove([]string{"test:latest", "test:V1"})
 	// build latest
-	builder := build.NewBuilder(ArtHome)
+	builder := build.NewBuilder(core.ArtDefaultHome)
 	builder.Build(".", "", "", testLatest, "test1", false, false, "")
 	// build V1
 	builder.Build(".", "", "", testV1, "test1", false, false, "")
@@ -56,13 +56,13 @@ func TestTagV1ToLatestExist(t *testing.T) {
 
 // TestTagV1ToLatest test that a package with a V1 tag can be tagged to latest when a previous latest tag does not exist
 func TestTagV1ToLatest(t *testing.T) {
-	reg := registry.NewLocalRegistry(ArtHome)
+	reg := registry.NewLocalRegistry(core.ArtDefaultHome)
 	// cleanup
 	testLatest, _ := core.ParseName("test:latest")
 	testV1, _ := core.ParseName("test:V1")
 	reg.Remove([]string{"test:latest", "test:V1"})
 	// build latest
-	builder := build.NewBuilder(ArtHome)
+	builder := build.NewBuilder(core.ArtDefaultHome)
 	// build V1
 	builder.Build(".", "", "", testV1, "test1", false, false, "")
 	// reload the registry

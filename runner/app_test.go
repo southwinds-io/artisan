@@ -14,7 +14,7 @@ import (
 
 func TestRunApp(t *testing.T) {
 	name, _ := core.ParseName("app/source-mac")
-	if err := RunApp(name, "", true, false, "test", nil); err != nil {
+	if err := RunApp(name, "", true, false, "test", core.ArtDefaultHome, nil); err != nil {
 		t.Fatal(err.Error())
 	}
 }
