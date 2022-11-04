@@ -29,9 +29,10 @@ type BuildCmd struct {
 	interactive bool
 	target      string
 	image       string
+	artHome     string
 }
 
-func NewBuildCmd() *BuildCmd {
+func NewBuildCmd(artHome string) *BuildCmd {
 	c := &BuildCmd{
 		Cmd: &cobra.Command{
 			Use:   "build [flags] /build/file/path or https://build/file/git/uri or /path/to/folder (without build file)",
@@ -98,6 +99,7 @@ Use the --image flag to specify which image to package as follows:
   $ art build --image docker.io/mongo:5 -t localhost:8080/images/mongo:5
 `,
 		},
+		artHome: artHome,
 	}
 	c.Cmd.Run = c.Run
 	c.Cmd.Flags().StringVarP(&c.gitToken, "token", "k", "", "the git access token to use to read a build file remotely stored in a protected git repository")
@@ -112,23 +114,23 @@ Use the --image flag to specify which image to package as follows:
 	return c
 }
 
-func (b *BuildCmd) Run(_ *cobra.Command, args []string) {
+func (c *BuildCmd) Run(_ *cobra.Command, args []string) {
 	// validate build path
 	switch len(args) {
 	case 0:
-		b.from = "."
+		c.from = "."
 	case 1:
-		b.from = args[0]
+		c.from = args[0]
 	default:
 		core.RaiseErr("too many arguments")
 	}
-	builder := build.NewBuilder("")
-	name, err := core.ParseName(b.packageName)
-	i18n.Err("", err, i18n.ERR_INVALID_PACKAGE_NAME)
+	builder := build.NewBuilder(c.artHome)
+	name, err := core.ParseName(c.packageName)
+	i18n.Err(c.artHome, err, i18n.ERR_INVALID_PACKAGE_NAME)
 	// if an image option as been specified uses the image builder
-	if len(b.image) > 0 {
-		core.CheckErr(release.BuildImagePackage(b.image, b.packageName, "", "", ""), "cannot build image package")
+	if len(c.image) > 0 {
+		core.CheckErr(release.BuildImagePackage(c.image, c.packageName, "", "", c.artHome), "cannot build image package")
 	} else {
-		core.CheckErr(builder.Build(b.from, b.fromPath, b.gitToken, name, b.profile, b.copySource, b.interactive, b.target), "cannot build package")
+		core.CheckErr(builder.Build(c.from, c.fromPath, c.gitToken, name, c.profile, c.copySource, c.interactive, c.target), "cannot build package")
 	}
 }

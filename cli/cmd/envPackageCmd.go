@@ -28,9 +28,10 @@ type EnvPackageCmd struct {
 	buildFilePath string
 	stdout        *bool
 	out           string
+	artHome       string
 }
 
-func NewEnvPackageCmd() *EnvPackageCmd {
+func NewEnvPackageCmd(artHome string) *EnvPackageCmd {
 	c := &EnvPackageCmd{
 		Cmd: &cobra.Command{
 			Use: "package [flags] [package name] [function-name (optional)]",
@@ -39,6 +40,7 @@ func NewEnvPackageCmd() *EnvPackageCmd {
 			Long: "return the variables required by a given package to run\n " +
 				"if a function name is not specified then variables for all functions are retrieved",
 		},
+		artHome: artHome,
 	}
 	c.Cmd.Flags().StringVarP(&c.buildFilePath, "build-file-path", "b", "", "--build-file-path=. or -b=.; the path to an artisan build.yaml file from which to pick required inputs")
 	c.Cmd.Flags().StringVarP(&c.out, "output", "o", "env", "--output yaml or -o yaml; the output format (e.g. env, json, yaml)")
@@ -52,7 +54,7 @@ func (c *EnvPackageCmd) Run(cmd *cobra.Command, args []string) {
 	if len(args) > 0 && len(args) < 3 {
 		name, err := core.ParseName(args[0])
 		core.CheckErr(err, "invalid package name: %s", name)
-		local := registry.NewLocalRegistry("")
+		local := registry.NewLocalRegistry(c.artHome)
 		manifest := local.GetManifest(name)
 		if len(args) == 2 {
 			fxName := args[1]

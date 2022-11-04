@@ -11,7 +11,7 @@ func InitialiseRootCmd(artHome string) *RootCmd {
 	rootCmd := NewRootCmd()
 	utilCmd := InitialiseUtilCommand(artHome)
 	specCmd := InitialiseSpecCommand(artHome)
-	buildCmd := NewBuildCmd()
+	buildCmd := NewBuildCmd(artHome)
 	lsCmd := NewListCmd(artHome)
 	pushCmd := NewPushCmd(artHome)
 	rmCmd := NewRmCmd(artHome)
@@ -26,7 +26,7 @@ func InitialiseRootCmd(artHome string) *RootCmd {
 	manifCmd := NewManifestCmd(artHome)
 	exeCmd := NewExeCmd(artHome)
 	exeCCmd := NewExeCCmd(artHome)
-	envCmd := InitialiseEnvCommand()
+	envCmd := InitialiseEnvCommand(artHome)
 	pruneCmd := NewPruneCmd(artHome)
 	rootCmd.Cmd.AddCommand(
 		utilCmd.Cmd,
@@ -98,9 +98,9 @@ func InitialiseSpecCommand(artHome string) *SpecCmd {
 	return specCmd
 }
 
-func InitialiseEnvCommand() *EnvCmd {
+func InitialiseEnvCommand(artHome string) *EnvCmd {
 	envCmd := NewEnvCmd()
-	envPackageCmd := NewEnvPackageCmd()
+	envPackageCmd := NewEnvPackageCmd(artHome)
 	envFlowCmd := NewEnvFlowCmd()
 	envCmd.Cmd.AddCommand(envFlowCmd.Cmd, envPackageCmd.Cmd)
 	return envCmd
