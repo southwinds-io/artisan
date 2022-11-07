@@ -499,7 +499,8 @@ func (r *LocalRegistry) GetNetwork(packageName string, functionName string) (*da
 	}
 	p := r.FindPackageByName(pkg)
 	if p == nil {
-		return nil, fmt.Errorf("cannot find package '%s'", packageName)
+		return nil, nil // if no package is found it should bypass network check
+		// return nil, fmt.Errorf("cannot find package '%s'", packageName)
 	}
 	seal, err := r.GetSeal(p)
 	if err != nil {
