@@ -63,5 +63,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	southwinds.dev/os v0.0.0-20220901065504-762d072c036a // indirect
+	southwinds.dev/os v0.0.0-00010101000000-000000000000 // indirect
 )
