@@ -243,7 +243,7 @@ func findGitPath(path string) (string, error) {
 	}
 }
 
-// check the the specified function is in the manifest
+// check the specified function is in the manifest
 func isExported(m *data.Manifest, fx string) bool {
 	for _, function := range m.Functions {
 		if function.Name == fx {
