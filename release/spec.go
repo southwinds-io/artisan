@@ -268,6 +268,7 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 		}
 		core.InfoLogger.Printf("loading => %s\n", image)
 		builder := build.NewBuilder(opts.ArtHome)
+		builder.SetRProc(opts.RProc)
 		pkg, err3 := core.ParseName(image)
 		if err3 != nil {
 			return spec, fmt.Errorf("cannot parse package name %s: %s", name, err)

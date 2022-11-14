@@ -742,7 +742,7 @@ func sProcessor(b *Builder, s *data.Seal) error {
 	return nil
 }
 
-func (b *Builder) SetVProc(p func(n *core.PackageName, s *data.Seal, p string) error) {
+func (b *Builder) SetVProc(p data.VProc) {
 	b.vProc = p
 }
 
