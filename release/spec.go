@@ -245,6 +245,9 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			core.InfoLogger.Printf("skipping image %s\n", pkName)
 			continue
 		}
+		if err := validatePublisher(pkName, r, opts.Publishers); err != nil {
+			return spec, err
+		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(pkName))
 		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VProc)
 		if err2 != nil {
@@ -592,6 +595,30 @@ func (s *Spec) Valid() error {
 				"\n valid format is <host|domain>/<group>/<image-name> ", strings.Join(invalidImgs, ", "))
 		}
 	}
+	return nil
+}
 
+func validatePublisher(pkgName string, r *registry.LocalRegistry, pubs []string) error {
+	name, err := core.ParseName(pkgName)
+	if err != nil {
+		fmt.Errorf("cannot validate publisher: %s", err)
+	}
+	pkg := r.FindPackageByName(name)
+	s, err := r.GetSeal(pkg)
+	if err != nil {
+		fmt.Errorf("cannot validate publisher: %s", err)
+	}
+	if len(s.Manifest.Author) > 0 && len(pubs) > 0 {
+		valid := false
+		for _, publisher := range pubs {
+			if strings.Contains(publisher, s.Manifest.Author) {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("unauthorised publisher %s", s.Manifest.Author)
+		}
+	}
 	return nil
 }

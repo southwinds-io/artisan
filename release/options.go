@@ -19,6 +19,7 @@ type ImportOptions struct {
 	ArtHome     string
 	VProc       data.VProc
 	RProc       data.RProc
+	Publishers  []string
 }
 
 func (o ImportOptions) Valid() error {
