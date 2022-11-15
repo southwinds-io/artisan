@@ -851,7 +851,7 @@ func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetP
 		return fmt.Errorf("cannot read package seal: %s", err)
 	}
 	if len(seal.Manifest.Author) > 0 && len(seal.Seal) > 0 {
-		return fmt.Errorf("cannot open encrypted packaged signed by '%s': upgrade upgrade to Artisan Enterprise if you would like to use encrypted packages, see https://docs.artisan.gdn/installation/", err)
+		return fmt.Errorf("you are trying to run an encrypted package, which requires Artisan Enterprise; see https://docs.artisan.gdn/installation for upgrade instructions")
 	}
 	// now we are ready to open it
 	// if the target was already compressed (e.g. jar file, etc.) then it should not unzip it but rename it
