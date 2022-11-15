@@ -42,12 +42,12 @@ type Builder struct {
 	loadFrom         string
 	env              *merge.Envar
 	artHome          string
-	sProc            func(b *Builder, s *data.Seal) error
+	sProc            SProc
 	vProc            data.VProc
 	rProc            data.RProc
 }
 
-type SProc func(b *Builder, s *data.Seal) error
+type SProc func(b *Builder, s *data.Seal, openP, runP, signP string) error
 
 func NewBuilder(artHome string) *Builder {
 	// create the builder instance
@@ -67,7 +67,7 @@ func NewBuilder(artHome string) *Builder {
 // copy: indicates whether a copy should be made of the project files before packaging (only valid for from location in the file system)
 // interactive: true if the console should survey for missing variables
 // target: a specific target without relying on a build file (can be either relative or absolute)
-func (b *Builder) Build(from, fromPath, gitToken string, name *core.PackageName, profileName string, copy bool, interactive bool, target string) error {
+func (b *Builder) Build(from, fromPath, gitToken string, name *core.PackageName, profileName string, copy bool, interactive bool, target, openP, runP, signP string) error {
 	b.from = from
 	// prepare the source ready for the build
 	repo := b.prepareSource(from, fromPath, gitToken, name, copy, target)
@@ -94,7 +94,7 @@ func (b *Builder) Build(from, fromPath, gitToken string, name *core.PackageName,
 	b.zipPackage(workingTarget)
 	// creates a seal
 	core.Debug("creating package seal\n")
-	s, err := b.createSeal(buildProfile)
+	s, err := b.createSeal(buildProfile, openP, runP, signP)
 	if err != nil {
 		return fmt.Errorf("cannot create package seal")
 	}
@@ -536,7 +536,7 @@ func (b *Builder) inSourceDirectory(relativePath string) string {
 }
 
 // create the package Seal
-func (b *Builder) createSeal(profile *data.Profile) (*data.Seal, error) {
+func (b *Builder) createSeal(profile *data.Profile, openP, runP, signP string) (*data.Seal, error) {
 	filename := b.uniqueIdName
 	// merge the labels in the profile with the ones at the build file level
 	labels := mergeMaps(b.buildFile.Labels, profile.Labels)
@@ -625,7 +625,7 @@ func (b *Builder) createSeal(profile *data.Profile) (*data.Seal, error) {
 			s.Manifest.Functions = append(s.Manifest.Functions, f)
 		}
 	}
-	err = b.sProc(b, s)
+	err = b.sProc(b, s, openP, runP, signP)
 	if err != nil {
 		return nil, fmt.Errorf("cannot post process package: %s", err)
 	}
@@ -730,11 +730,11 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 	return nil
 }
 
-func (b *Builder) SetSProc(p func(b *Builder, s *data.Seal) error) {
+func (b *Builder) SetSProc(p SProc) {
 	b.sProc = p
 }
 
-func sProcessor(b *Builder, s *data.Seal) error {
+func sProcessor(b *Builder, s *data.Seal, openP, runP, signP string) error {
 	// calculates the package digest used to check its integrity
 	digest := s.DSha256(b.WorkDirPackageFilename())
 	core.Debug("the package digest is '%s'\n", digest)

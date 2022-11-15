@@ -120,7 +120,7 @@ func NewSpec(path, creds string) (*Spec, error) {
 	return spec, spec.Valid()
 }
 
-func ExportSpec(opts ExportOptions) error {
+func ExportSpec(opts ExportOptions, openP, runP, signP string) error {
 	if err := opts.Valid(); err != nil {
 		return fmt.Errorf("invalid export options: %s\n", err)
 	}
@@ -157,7 +157,7 @@ func ExportSpec(opts ExportOptions) error {
 		// note: the package is saved with a name exactly the same as the container image
 		// to avoid the art package name parsing from failing, any images with no host or user/group in the name should be avoided
 		// e.g. docker.io/mongo-express:latest will fail so use docker.io/library/mongo-express:latest instead
-		err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome)
+		err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, openP, runP, signP)
 		if err != nil {
 			return fmt.Errorf("cannot save image %s: %s", value, err)
 		}
@@ -193,7 +193,7 @@ func ExportSpec(opts ExportOptions) error {
 				pkges = append(pkges, v)
 			}
 			//export all debian packages into a single artisan package
-			err = BuildDebianPackage(pkges, &opts)
+			err = BuildDebianPackage(pkges, &opts, openP, runP, signP)
 			if err != nil {
 				return fmt.Errorf("failed to export debian package %s: %s", value, err)
 			}
@@ -262,8 +262,8 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			continue
 		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(image))
-		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VerifyProc, opts.AuthorisedAuthors)
-		if err2 != nil {
+		err = r.Import([]string{name}, opts.TargetCreds, opts.VerifyProc, opts.AuthorisedAuthors)
+		if err != nil {
 			return spec, fmt.Errorf("cannot read %s.tar: %s", pkgName(image), err)
 		}
 		core.InfoLogger.Printf("loading => %s\n", image)
@@ -275,9 +275,9 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 		}
 		// run the function on the open package
 		core.Debug("executing art run %s import", image)
-		err2 = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarFromSlice([]string{}), opts.AuthorisedAuthors)
-		if err2 != nil {
-			return spec, fmt.Errorf("cannot import image %s: %s", image, err2)
+		err = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarFromSlice([]string{}), opts.AuthorisedAuthors)
+		if err != nil {
+			return spec, fmt.Errorf("cannot import image %s: %s", image, err)
 		}
 	}
 	return spec, nil

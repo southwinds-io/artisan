@@ -24,7 +24,7 @@ import (
 
 // BuildImagePackage build a package containing a docker image
 // If a targetUri is specified, then the package is also exported to s3 or the file system
-func BuildImagePackage(imgName, packName, targetUri, creds, artHome string) error {
+func BuildImagePackage(imgName, packName, targetUri, creds, artHome, openP, runP, signP string) error {
 	pName, err := core.ParseName(packName)
 	if err != nil {
 		return fmt.Errorf("invalid package name: %s, ensure the container image name fully specify host and user/group if from docker.io", err)
@@ -110,7 +110,7 @@ func BuildImagePackage(imgName, packName, targetUri, creds, artHome string) erro
 		return fmt.Errorf("cannot save package build file: %s", err)
 	}
 	b := build.NewBuilder(artHome)
-	b.Build(tmp, "", "", pName, "", false, false, "")
+	b.Build(tmp, "", "", pName, "", false, false, "", openP, runP, signP)
 	r := registry.NewLocalRegistry(artHome)
 	// export package
 	core.InfoLogger.Printf("exporting image package to tarball file")

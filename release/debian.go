@@ -27,7 +27,7 @@ import (
 
 // BuildDebianPackage build a package containing debian packages
 // If export options are specified, it also exports the package
-func BuildDebianPackage(pkgNames []string, opts *ExportOptions) error {
+func BuildDebianPackage(pkgNames []string, opts *ExportOptions, openP, runP, signP string) error {
 	targetUri := opts.TargetUri
 	creds := opts.TargetCreds
 	artHome := opts.ArtHome
@@ -134,7 +134,7 @@ func BuildDebianPackage(pkgNames []string, opts *ExportOptions) error {
 	}
 
 	b := build.NewBuilder(artHome)
-	b.Build(tmp, "", "", pName, "", false, false, "")
+	b.Build(tmp, "", "", pName, "", false, false, "", openP, runP, signP)
 	r := registry.NewLocalRegistry(artHome)
 	if opts != nil {
 		// export package
@@ -262,7 +262,7 @@ func generateBuildFunctions(bckupCmds []string, targetOs string) ([]byte, error)
 				},
 			},
 		},
-		//Labels:  map[string]string{"target_os": targetOs},
+		// Labels:  map[string]string{"target_os": targetOs},
 		Functions: []*data.Function{
 			{
 				Name:        "apply",
