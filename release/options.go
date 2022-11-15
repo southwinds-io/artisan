@@ -17,8 +17,9 @@ type ImportOptions struct {
 	TargetCreds       string
 	Filter            string
 	ArtHome           string
-	VProc             data.VProc
-	RProc             data.RProc
+	DecryptProc       data.VProc
+	VerifyProc        data.VProc
+	RunProc           data.RProc
 	AuthorisedAuthors []string
 }
 

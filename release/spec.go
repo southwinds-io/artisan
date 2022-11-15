@@ -246,7 +246,7 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			continue
 		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(pkName))
-		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VProc, opts.AuthorisedAuthors)
+		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VerifyProc, opts.AuthorisedAuthors)
 		if err2 != nil {
 			return spec, fmt.Errorf("cannot read %s.tar: %s", pkgName(pkName), err2)
 		}
@@ -262,13 +262,13 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			continue
 		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(image))
-		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VProc, opts.AuthorisedAuthors)
+		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VerifyProc, opts.AuthorisedAuthors)
 		if err2 != nil {
 			return spec, fmt.Errorf("cannot read %s.tar: %s", pkgName(image), err)
 		}
 		core.InfoLogger.Printf("loading => %s\n", image)
 		builder := build.NewBuilder(opts.ArtHome)
-		builder.SetRProc(opts.RProc)
+		builder.SetVProc(opts.DecryptProc)
 		pkg, err3 := core.ParseName(image)
 		if err3 != nil {
 			return spec, fmt.Errorf("cannot parse package name %s: %s", name, err)
