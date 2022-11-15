@@ -1126,7 +1126,7 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 // uri: the uri of the package to import (can be file path or S3 bucket uri)
 // creds: the credentials to connect to the endpoint if it is authenticated S3 in the format user:password
 // localPath: if specified, it downloads the remote files to a target folder
-func (r *LocalRegistry) Import(uri []string, creds string, v func(n *core.PackageName, s *data.Seal, r *LocalRegistry) error) error {
+func (r *LocalRegistry) Import(uri []string, creds string, v data.VProc) error {
 	for _, fPath := range uri {
 		if err := r.importTar(fPath, creds, v); err != nil {
 			return err
@@ -1135,7 +1135,7 @@ func (r *LocalRegistry) Import(uri []string, creds string, v func(n *core.Packag
 	return nil
 }
 
-func (r *LocalRegistry) importTar(uri, creds string, v func(n *core.PackageName, s *data.Seal, r *LocalRegistry) error) error {
+func (r *LocalRegistry) importTar(uri, creds string, v data.VProc) error {
 	core.InfoLogger.Printf("reading => %s\n", uri)
 	tarBytes, err := resx.ReadFile(uri, creds)
 	if err != nil {
@@ -1179,7 +1179,7 @@ func (r *LocalRegistry) importTar(uri, creds string, v func(n *core.PackageName,
 			// if a validation function has been provided
 			if v != nil {
 				// validate package before importing it
-				if err = v(packageName, seal, r); err != nil {
+				if err = v(packageName, seal, packageFilename); err != nil {
 					return err
 				}
 			}

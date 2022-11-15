@@ -43,9 +43,11 @@ type Builder struct {
 	env              *merge.Envar
 	artHome          string
 	sProc            func(b *Builder, s *data.Seal) error
-	vProc            func(n *core.PackageName, s *data.Seal, p string) error
-	rProc            func(name *core.PackageName, f string, seal *data.Seal) error
+	vProc            data.VProc
+	rProc            data.RProc
 }
+
+type SProc func(b *Builder, s *data.Seal) error
 
 func NewBuilder(artHome string) *Builder {
 	// create the builder instance
@@ -740,10 +742,10 @@ func sProcessor(b *Builder, s *data.Seal) error {
 	return nil
 }
 
-func (b *Builder) SetVProc(p func(n *core.PackageName, s *data.Seal, p string) error) {
+func (b *Builder) SetVProc(p data.VProc) {
 	b.vProc = p
 }
 
-func (b *Builder) SetRProc(p func(name *core.PackageName, f string, seal *data.Seal) error) {
+func (b *Builder) SetRProc(p data.RProc) {
 	b.rProc = p
 }

@@ -7,7 +7,10 @@
 
 package data
 
-import "strings"
+import (
+	"southwinds.dev/artisan/core"
+	"strings"
+)
 
 type Var struct {
 	Name        string `yaml:"name" json:"name"`
@@ -34,3 +37,6 @@ func (list Vars) Less(i, j int) bool {
 	}
 	return si_lower < sj_lower
 }
+
+type VProc func(name *core.PackageName, s *Seal, p string) error
+type RProc func(name *core.PackageName, f string, seal *Seal) error

@@ -9,9 +9,7 @@ package release
 
 import (
 	"fmt"
-	"southwinds.dev/artisan/core"
 	"southwinds.dev/artisan/data"
-	"southwinds.dev/artisan/registry"
 )
 
 type ImportOptions struct {
@@ -19,7 +17,8 @@ type ImportOptions struct {
 	TargetCreds string
 	Filter      string
 	ArtHome     string
-	VProc       func(n *core.PackageName, s *data.Seal, r *registry.LocalRegistry) error
+	VProc       data.VProc
+	RProc       data.RProc
 }
 
 func (o ImportOptions) Valid() error {
