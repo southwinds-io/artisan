@@ -2,3 +2,4 @@
 art/bin
 .gz
 *.iml
+go.work.sum
