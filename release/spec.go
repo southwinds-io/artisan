@@ -245,11 +245,8 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			core.InfoLogger.Printf("skipping image %s\n", pkName)
 			continue
 		}
-		if err := validatePublisher(pkName, r, opts.Publishers); err != nil {
-			return spec, err
-		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(pkName))
-		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VProc)
+		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VProc, opts.AuthorisedAuthors)
 		if err2 != nil {
 			return spec, fmt.Errorf("cannot read %s.tar: %s", pkgName(pkName), err2)
 		}
@@ -265,7 +262,7 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			continue
 		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(image))
-		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VProc)
+		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VProc, opts.AuthorisedAuthors)
 		if err2 != nil {
 			return spec, fmt.Errorf("cannot read %s.tar: %s", pkgName(image), err)
 		}
@@ -278,7 +275,7 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 		}
 		// run the function on the open package
 		core.Debug("executing art run %s import", image)
-		err2 = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarFromSlice([]string{}))
+		err2 = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarFromSlice([]string{}), opts.AuthorisedAuthors)
 		if err2 != nil {
 			return spec, fmt.Errorf("cannot import image %s: %s", image, err2)
 		}
@@ -593,31 +590,6 @@ func (s *Spec) Valid() error {
 		if len(invalidImgs) > 0 {
 			return fmt.Errorf(" invalid format of container image name for following images [ %s ]"+
 				"\n valid format is <host|domain>/<group>/<image-name> ", strings.Join(invalidImgs, ", "))
-		}
-	}
-	return nil
-}
-
-func validatePublisher(pkgName string, r *registry.LocalRegistry, pubs []string) error {
-	name, err := core.ParseName(pkgName)
-	if err != nil {
-		fmt.Errorf("cannot validate publisher: %s", err)
-	}
-	pkg := r.FindPackageByName(name)
-	s, err := r.GetSeal(pkg)
-	if err != nil {
-		fmt.Errorf("cannot validate publisher: %s", err)
-	}
-	if len(s.Manifest.Author) > 0 && len(pubs) > 0 {
-		valid := false
-		for _, publisher := range pubs {
-			if strings.Contains(publisher, s.Manifest.Author) {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			return fmt.Errorf("unauthorised publisher %s", s.Manifest.Author)
 		}
 	}
 	return nil

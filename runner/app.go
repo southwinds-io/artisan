@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func RunApp(name *core.PackageName, credentials string, detached, clean bool, path string, artHome string, v func(n *core.PackageName, s *data.Seal, p string) error) error {
+func RunApp(name *core.PackageName, credentials string, detached, clean bool, path string, artHome string, v data.VProc) error {
 	// gets a handle to the local registry
 	r := registry.NewLocalRegistry(artHome)
 	// check if the package is there
@@ -66,7 +66,7 @@ func RunApp(name *core.PackageName, credentials string, detached, clean bool, pa
 	if _, err = os.Stat(path); os.IsNotExist(err) {
 		_ = os.MkdirAll(path, 0755)
 	}
-	if err = r.Open(name, credentials, path, v); err != nil {
+	if err = r.Open(name, credentials, path, v, []string{}); err != nil {
 		return err
 	}
 	if clean {
@@ -180,7 +180,7 @@ func assignVolumeVars(manifest *data.Manifest) error {
 	return nil
 }
 
-func runAutomationPackage(name *core.PackageName, packageFx, packageSource, credentials string, detached, clean bool, path string, artHome string, v func(n *core.PackageName, s *data.Seal, p string) error) error {
+func runAutomationPackage(name *core.PackageName, packageFx, packageSource, credentials string, detached, clean bool, path string, artHome string, v data.VProc) error {
 	core.RaiseErr("automation package run is not implemented")
 	// if a package name has been provided
 	if name != nil {
@@ -193,7 +193,7 @@ func runAutomationPackage(name *core.PackageName, packageFx, packageSource, cred
 					return err
 				}
 				builder := build.NewBuilder(core.ArtDefaultHome)
-				builder.Execute(name, packageFx, credentials, false, "/workspace/source", true, nil)
+				builder.Execute(name, packageFx, credentials, false, "/workspace/source", true, nil, []string{})
 			case "merge":
 			case "read":
 			}

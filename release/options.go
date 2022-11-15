@@ -13,13 +13,13 @@ import (
 )
 
 type ImportOptions struct {
-	TargetUri   string
-	TargetCreds string
-	Filter      string
-	ArtHome     string
-	VProc       data.VProc
-	RProc       data.RProc
-	Publishers  []string
+	TargetUri         string
+	TargetCreds       string
+	Filter            string
+	ArtHome           string
+	VProc             data.VProc
+	RProc             data.RProc
+	AuthorisedAuthors []string
 }
 
 func (o ImportOptions) Valid() error {

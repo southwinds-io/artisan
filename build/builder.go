@@ -665,7 +665,7 @@ func (b *Builder) getBuildEnv() map[string]string {
 }
 
 // Execute an exported function in a package
-func (b *Builder) Execute(name *core.PackageName, function string, credentials string, interactive bool, path string, preserveFiles bool, env *merge.Envar) error {
+func (b *Builder) Execute(name *core.PackageName, function string, credentials string, interactive bool, path string, preserveFiles bool, env *merge.Envar, authorisedAuthors []string) error {
 	// get a local registry handle
 	local := registry.NewLocalRegistry(b.artHome)
 	// check the run path exist
@@ -683,7 +683,8 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 		name,
 		credentials,
 		path,
-		b.vProc)
+		b.vProc,
+		authorisedAuthors)
 	if err != nil {
 		return err
 	}
