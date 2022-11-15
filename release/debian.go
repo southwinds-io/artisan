@@ -252,21 +252,45 @@ func generateBuildFunctions(bckupCmds []string, targetOs string) ([]byte, error)
 	export_yes := true
 	bf := data.BuildFile{
 		Runtime: "ubi-min",
+		Input: &data.Input{
+			Var: data.Vars{
+				&data.Var{
+					Name:        "RELEASE_SNAPSHOT_DEVICE",
+					Description: "name of snapshot device which will be used for taking snapshot",
+					Required:    true,
+					Type:        "string",
+				},
+			},
+		},
+		//Labels:  map[string]string{"target_os": targetOs},
 		Functions: []*data.Function{
 			{
 				Name:        "apply",
 				Description: "apply debian packages to the operating system. In case of failure, will automatically rollback",
 				Export:      &export_yes,
 				Run: []string{
-					"bash -c './patch-apt.sh' -v " + targetOs,
+					"bash -c './patch-apt.sh -v " + targetOs + "'",
 				},
 			},
 			{
-				Name:        "apply",
-				Description: "apply debian packages to the operating system. In case of failure, will automatically rollback",
+				Name:        "apply-snapshot",
+				Description: "apply debian packages to the operating system with snapshot enabled. In case of failure, will automatically rollback",
 				Export:      &export_yes,
 				Run: []string{
-					"bash -c './patch-apt.sh' -s yes -v " + targetOs,
+					"bash -c './patch-apt.sh -s yes -v " + targetOs + "'",
+				},
+			},
+			{
+				Name:        "apply-snapshot-withdevice",
+				Description: "apply debian packages to the operating system with snapshot enabled and snapshot device defined. In case of failure, will automatically rollback",
+				Export:      &export_yes,
+				Run: []string{
+					"bash -c './patch-apt.sh -s yes -v " + targetOs + " -d ${RELEASE_SNAPSHOT_DEVICE}'",
+				},
+				Input: &data.InputBinding{
+					Var: []string{
+						"RELEASE_SNAPSHOT_DEVICE",
+					},
 				},
 			},
 		},
@@ -586,7 +610,7 @@ fs_size() {
         echo "Unsupported FS type. Use EXT or XFS"
         echo ""
         echo "########################################################"
-        Exit 1
+        exit 1
     fi    
 }
 
