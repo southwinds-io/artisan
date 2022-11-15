@@ -9,6 +9,7 @@ package release
 
 import (
 	"fmt"
+	"southwinds.dev/artisan/build"
 	"southwinds.dev/artisan/data"
 )
 
@@ -37,6 +38,7 @@ type ExportOptions struct {
 	TargetCreds   string
 	Filter        string
 	ArtHome       string
+	BuildProc     build.BProc
 }
 
 func (o ExportOptions) Valid() error {

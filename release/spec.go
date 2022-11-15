@@ -157,7 +157,7 @@ func ExportSpec(opts ExportOptions, openP, runP, signP string) error {
 		// note: the package is saved with a name exactly the same as the container image
 		// to avoid the art package name parsing from failing, any images with no host or user/group in the name should be avoided
 		// e.g. docker.io/mongo-express:latest will fail so use docker.io/library/mongo-express:latest instead
-		err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, openP, runP, signP)
+		err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, openP, runP, signP, opts.BuildProc)
 		if err != nil {
 			return fmt.Errorf("cannot save image %s: %s", value, err)
 		}
@@ -193,7 +193,7 @@ func ExportSpec(opts ExportOptions, openP, runP, signP string) error {
 				pkges = append(pkges, v)
 			}
 			//export all debian packages into a single artisan package
-			err = BuildDebianPackage(pkges, &opts, openP, runP, signP)
+			err = BuildDebianPackage(pkges, &opts, openP, runP, signP, opts.BuildProc)
 			if err != nil {
 				return fmt.Errorf("failed to export debian package %s: %s", value, err)
 			}

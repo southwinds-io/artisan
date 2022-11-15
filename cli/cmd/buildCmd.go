@@ -129,7 +129,7 @@ func (c *BuildCmd) Run(_ *cobra.Command, args []string) {
 	i18n.Err(c.artHome, err, i18n.ERR_INVALID_PACKAGE_NAME)
 	// if an image option as been specified uses the image builder
 	if len(c.image) > 0 {
-		core.CheckErr(release.BuildImagePackage(c.image, c.packageName, "", "", c.artHome, "", "", ""), "cannot build image package")
+		core.CheckErr(release.BuildImagePackage(c.image, c.packageName, "", "", c.artHome, "", "", "", nil), "cannot build image package")
 	} else {
 		core.CheckErr(builder.Build(c.from, c.fromPath, c.gitToken, name, c.profile, c.copySource, c.interactive, c.target, "", "", ""), "cannot build package")
 	}

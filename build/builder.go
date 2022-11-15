@@ -42,12 +42,12 @@ type Builder struct {
 	loadFrom         string
 	env              *merge.Envar
 	artHome          string
-	sProc            SProc
+	sProc            BProc
 	vProc            data.VProc
 	rProc            data.RProc
 }
 
-type SProc func(b *Builder, s *data.Seal, openP, runP, signP string) error
+type BProc func(b *Builder, s *data.Seal, openP, runP, signP string) error
 
 func NewBuilder(artHome string) *Builder {
 	// create the builder instance
@@ -730,7 +730,7 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 	return nil
 }
 
-func (b *Builder) SetSProc(p SProc) {
+func (b *Builder) SetBProc(p BProc) {
 	b.sProc = p
 }
 
