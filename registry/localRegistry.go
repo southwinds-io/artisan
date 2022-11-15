@@ -850,7 +850,7 @@ func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetP
 	if err != nil {
 		return fmt.Errorf("cannot read package seal: %s", err)
 	}
-	if len(seal.Manifest.Author) > 0 && len(seal.Seal) > 0 {
+	if len(seal.Manifest.Author) > 0 && len(seal.Seal) > 0 && v == nil {
 		return fmt.Errorf("you are trying to run an encrypted package, which requires Artisan Enterprise; see https://docs.artisan.gdn/installation for upgrade instructions")
 	}
 	// now we are ready to open it
