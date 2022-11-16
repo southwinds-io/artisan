@@ -30,8 +30,8 @@ func NewRootCmd() *RootCmd {
 |         __    ___  _____  _   __    __    _           |
 |        / /\  | |_)  | |  | | ( ('  / /\  | |\ |       |
 |       /_/--\ |_| \  |_|  |_| _)_) /_/--\ |_| \|       |
-|         build, package, publish, run anywhere         |
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+|       build, package, publish and run everywhere      |
++++++++++++++++++| automation manager |++++++++++++++++++
 
 version: %s`, core.Version),
 			Version: core.Version,
