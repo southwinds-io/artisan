@@ -14,14 +14,14 @@ import (
 )
 
 type ImportOptions struct {
-	TargetUri         string
-	TargetCreds       string
-	Filter            string
-	ArtHome           string
-	DecryptProc       data.VProc
-	VerifyProc        data.VProc
-	RunProc           data.RProc
-	AuthorisedAuthors []string
+	TargetUri             string
+	TargetCreds           string
+	Filter                string
+	ArtHome               string
+	DecryptOnRunHandler   data.VerifyHandler
+	VerifyOnImportHandler data.VerifyHandler
+	AllowedAuthors        []string
+	Sign                  bool
 }
 
 func (o ImportOptions) Valid() error {
@@ -38,7 +38,8 @@ type ExportOptions struct {
 	TargetCreds   string
 	Filter        string
 	ArtHome       string
-	BuildProc     build.BProc
+	BuildProc     build.BuildHandler
+	LogRunHandler data.RunHandler
 }
 
 func (o ExportOptions) Valid() error {
@@ -79,15 +80,16 @@ func (o PullOptions) Valid() error {
 }
 
 type PushOptions struct {
-	SpecPath string
-	Host     string
-	Group    string
-	User     string
-	Creds    string
-	Image    bool
-	Clean    bool
-	Logout   bool
-	ArtHome  string
+	SpecPath      string
+	Host          string
+	Group         string
+	User          string
+	Creds         string
+	Image         bool
+	Clean         bool
+	Logout        bool
+	ArtHome       string
+	LogRunHandler data.RunHandler
 }
 
 func (o PushOptions) Valid() error {

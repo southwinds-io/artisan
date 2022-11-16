@@ -28,15 +28,15 @@ func (list Vars) Len() int { return len(list) }
 func (list Vars) Swap(i, j int) { list[i], list[j] = list[j], list[i] }
 
 func (list Vars) Less(i, j int) bool {
-	var si string = list[i].Name
-	var sj string = list[j].Name
-	var si_lower = strings.ToLower(si)
-	var sj_lower = strings.ToLower(sj)
-	if si_lower == sj_lower {
+	var si = list[i].Name
+	var sj = list[j].Name
+	var siLower = strings.ToLower(si)
+	var sjLower = strings.ToLower(sj)
+	if siLower == sjLower {
 		return si < sj
 	}
-	return si_lower < sj_lower
+	return siLower < sjLower
 }
 
-type VProc func(name *core.PackageName, s *Seal, path string, authorisedAuthors []string) error
-type RProc func(name *core.PackageName, f string, seal *Seal) error
+type VerifyHandler func(name *core.PackageName, seal *Seal, path string, authorisedAuthors []string, sign bool) error
+type RunHandler func(name *core.PackageName, fx string, seal *Seal) error

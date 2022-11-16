@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func RunApp(name *core.PackageName, credentials string, detached, clean bool, path string, artHome string, v data.VProc) error {
+func RunApp(name *core.PackageName, credentials string, detached, clean bool, path string, artHome string, v data.VerifyHandler) error {
 	// gets a handle to the local registry
 	r := registry.NewLocalRegistry(artHome)
 	// check if the package is there
@@ -180,7 +180,7 @@ func assignVolumeVars(manifest *data.Manifest) error {
 	return nil
 }
 
-func runAutomationPackage(name *core.PackageName, packageFx, packageSource, credentials string, detached, clean bool, path string, artHome string, v data.VProc) error {
+func runAutomationPackage(name *core.PackageName, packageFx, packageSource, credentials string, detached, clean bool, path string, artHome string, v data.VerifyHandler) error {
 	core.RaiseErr("automation package run is not implemented")
 	// if a package name has been provided
 	if name != nil {

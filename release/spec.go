@@ -120,7 +120,7 @@ func NewSpec(path, creds string) (*Spec, error) {
 	return spec, spec.Valid()
 }
 
-func ExportSpec(opts ExportOptions, openP, runP, signP string) error {
+func ExportSpec(opts ExportOptions) error {
 	if err := opts.Valid(); err != nil {
 		return fmt.Errorf("invalid export options: %s\n", err)
 	}
@@ -144,6 +144,18 @@ func ExportSpec(opts ExportOptions, openP, runP, signP string) error {
 		if err != nil {
 			return fmt.Errorf("cannot save package %s: %s", value, err)
 		}
+		if opts.LogRunHandler != nil {
+			if pkgs, found := l.GetPackagesByName(name); found {
+				seal, err := l.GetSeal(pkgs[0])
+				if err != nil {
+					core.WarningLogger.Printf("cannot retrieve seal for package '%s': %s", name.FullyQualifiedNameTag(), err)
+				} else {
+					opts.LogRunHandler(name, fmt.Sprintf("doorman.export=>%s", uri), seal)
+				}
+			} else {
+				core.WarningLogger.Printf("did not find package for '%s', cannot log run", name.FullyQualifiedNameTag())
+			}
+		}
 	}
 	// save images
 	for _, value := range opts.Specification.Images {
@@ -157,7 +169,7 @@ func ExportSpec(opts ExportOptions, openP, runP, signP string) error {
 		// note: the package is saved with a name exactly the same as the container image
 		// to avoid the art package name parsing from failing, any images with no host or user/group in the name should be avoided
 		// e.g. docker.io/mongo-express:latest will fail so use docker.io/library/mongo-express:latest instead
-		err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, openP, runP, signP, opts.BuildProc)
+		err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, opts.BuildProc)
 		if err != nil {
 			return fmt.Errorf("cannot save image %s: %s", value, err)
 		}
@@ -193,7 +205,7 @@ func ExportSpec(opts ExportOptions, openP, runP, signP string) error {
 				pkges = append(pkges, v)
 			}
 			//export all debian packages into a single artisan package
-			err = BuildDebianPackage(pkges, &opts, openP, runP, signP, opts.BuildProc)
+			err = BuildDebianPackage(pkges, &opts)
 			if err != nil {
 				return fmt.Errorf("failed to export debian package %s: %s", value, err)
 			}
@@ -246,7 +258,7 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			continue
 		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(pkName))
-		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VerifyProc, opts.AuthorisedAuthors)
+		err2 := r.Import([]string{name}, opts.TargetCreds, opts.VerifyOnImportHandler, opts.AllowedAuthors, opts.Sign)
 		if err2 != nil {
 			return spec, fmt.Errorf("cannot read %s.tar: %s", pkgName(pkName), err2)
 		}
@@ -262,20 +274,20 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 			continue
 		}
 		name := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(image))
-		err = r.Import([]string{name}, opts.TargetCreds, opts.VerifyProc, opts.AuthorisedAuthors)
+		err = r.Import([]string{name}, opts.TargetCreds, opts.VerifyOnImportHandler, opts.AllowedAuthors, opts.Sign)
 		if err != nil {
 			return spec, fmt.Errorf("cannot read %s.tar: %s", pkgName(image), err)
 		}
 		core.InfoLogger.Printf("loading => %s\n", image)
 		builder := build.NewBuilder(opts.ArtHome)
-		builder.SetVProc(opts.DecryptProc)
+		builder.SetVProc(opts.DecryptOnRunHandler)
 		pkg, err3 := core.ParseName(image)
 		if err3 != nil {
 			return spec, fmt.Errorf("cannot parse package name %s: %s", name, err)
 		}
 		// run the function on the open package
 		core.Debug("executing art run %s import", image)
-		err = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarFromSlice([]string{}), opts.AuthorisedAuthors)
+		err = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarFromSlice([]string{}), opts.AllowedAuthors)
 		if err != nil {
 			return spec, fmt.Errorf("cannot import image %s: %s", image, err)
 		}
@@ -454,6 +466,19 @@ func PushSpec(opts PushOptions) error {
 			err = local.Push(tgtName, opts.User, false)
 			if err != nil {
 				return err
+			}
+			if opts.LogRunHandler != nil {
+				name, _ := core.ParseName(pac)
+				if pkgs, found := local.GetPackagesByName(name); found {
+					seal, err := local.GetSeal(pkgs[0])
+					if err != nil {
+						core.WarningLogger.Printf("cannot retrieve seal for package '%s': %s", name.FullyQualifiedNameTag(), err)
+					} else {
+						opts.LogRunHandler(name, fmt.Sprintf("doorman.push=>%s", tgtNameStr), seal)
+					}
+				} else {
+					core.WarningLogger.Printf("did not find package for '%s', cannot log run", name.FullyQualifiedNameTag())
+				}
 			}
 			// if cleaning has been specified
 			if opts.Clean {

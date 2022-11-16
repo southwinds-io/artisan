@@ -42,12 +42,12 @@ type Builder struct {
 	loadFrom         string
 	env              *merge.Envar
 	artHome          string
-	sProc            BProc
-	vProc            data.VProc
-	rProc            data.RProc
+	sProc            BuildHandler
+	vProc            data.VerifyHandler
+	rProc            data.RunHandler
 }
 
-type BProc func(b *Builder, s *data.Seal, openP, runP, signP string) error
+type BuildHandler func(b *Builder, s *data.Seal, openP, runP, signP string) error
 
 func NewBuilder(artHome string) *Builder {
 	// create the builder instance
@@ -625,9 +625,11 @@ func (b *Builder) createSeal(profile *data.Profile, openP, runP, signP string) (
 			s.Manifest.Functions = append(s.Manifest.Functions, f)
 		}
 	}
-	err = b.sProc(b, s, openP, runP, signP)
-	if err != nil {
-		return nil, fmt.Errorf("cannot post process package: %s", err)
+	if b.sProc != nil {
+		err = b.sProc(b, s, openP, runP, signP)
+		if err != nil {
+			return nil, fmt.Errorf("cannot post process package: %s", err)
+		}
 	}
 	return s, nil
 }
@@ -730,7 +732,7 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 	return nil
 }
 
-func (b *Builder) SetBProc(p BProc) {
+func (b *Builder) SetBProc(p BuildHandler) {
 	b.sProc = p
 }
 
@@ -743,10 +745,10 @@ func sProcessor(b *Builder, s *data.Seal, openP, runP, signP string) error {
 	return nil
 }
 
-func (b *Builder) SetVProc(p data.VProc) {
+func (b *Builder) SetVProc(p data.VerifyHandler) {
 	b.vProc = p
 }
 
-func (b *Builder) SetRProc(p data.RProc) {
+func (b *Builder) SetRProc(p data.RunHandler) {
 	b.rProc = p
 }

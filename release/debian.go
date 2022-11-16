@@ -27,7 +27,7 @@ import (
 
 // BuildDebianPackage build a package containing debian packages
 // If export options are specified, it also exports the package
-func BuildDebianPackage(pkgNames []string, opts *ExportOptions, openP, runP, signP string, v build.BProc) error {
+func BuildDebianPackage(pkgNames []string, opts *ExportOptions) error {
 	targetUri := opts.TargetUri
 	creds := opts.TargetCreds
 	artHome := opts.ArtHome
@@ -134,8 +134,8 @@ func BuildDebianPackage(pkgNames []string, opts *ExportOptions, openP, runP, sig
 	}
 
 	b := build.NewBuilder(artHome)
-	b.SetBProc(v)
-	b.Build(tmp, "", "", pName, "", false, false, "", openP, runP, signP)
+	b.SetBProc(opts.BuildProc)
+	b.Build(tmp, "", "", pName, "", false, false, "", "", ".*", "")
 	r := registry.NewLocalRegistry(artHome)
 	if opts != nil {
 		// export package

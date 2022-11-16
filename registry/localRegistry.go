@@ -826,7 +826,7 @@ func (r *LocalRegistry) loadSeal(sealFilename string) (*data.Seal, error) {
 	return seal, nil
 }
 
-func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetPath string, v data.VProc, authorisedAuthors []string) error {
+func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetPath string, v data.VerifyHandler, authorisedAuthors []string) error {
 	var err error
 	if len(targetPath) == 0 {
 		targetPath = core.WorkDir()
@@ -872,7 +872,7 @@ func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetP
 		return fmt.Errorf("cannot copy package to working folder: %s", err)
 	}
 	if v != nil {
-		err = v(name, seal, zipTempFilePath, authorisedAuthors)
+		err = v(name, seal, zipTempFilePath, authorisedAuthors, false)
 		if err != nil {
 			return err
 		}
@@ -1129,16 +1129,16 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 // uri: the uri of the package to import (can be file path or S3 bucket uri)
 // creds: the credentials to connect to the endpoint if it is authenticated S3 in the format user:password
 // localPath: if specified, it downloads the remote files to a target folder
-func (r *LocalRegistry) Import(uri []string, creds string, v data.VProc, authorisedAuthors []string) error {
+func (r *LocalRegistry) Import(uri []string, creds string, v data.VerifyHandler, allowedAuthors []string, sign bool) error {
 	for _, fPath := range uri {
-		if err := r.importTar(fPath, creds, v, authorisedAuthors); err != nil {
+		if err := r.importTar(fPath, creds, v, allowedAuthors, sign); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *LocalRegistry) importTar(uri, creds string, v data.VProc, authorisedAuthors []string) error {
+func (r *LocalRegistry) importTar(uri, creds string, v data.VerifyHandler, allowedAuthors []string, sign bool) error {
 	core.InfoLogger.Printf("reading => %s\n", uri)
 	tarBytes, err := resx.ReadFile(uri, creds)
 	if err != nil {
@@ -1182,7 +1182,7 @@ func (r *LocalRegistry) importTar(uri, creds string, v data.VProc, authorisedAut
 			// if a validation function has been provided
 			if v != nil {
 				// validate package before importing it
-				if err = v(packageName, seal, packageFilename, authorisedAuthors); err != nil {
+				if err = v(packageName, seal, packageFilename, allowedAuthors, sign); err != nil {
 					return err
 				}
 			}

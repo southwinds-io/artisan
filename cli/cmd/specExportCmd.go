@@ -95,5 +95,5 @@ func (c *SpecExportCmd) Run(cmd *cobra.Command, args []string) {
 			TargetCreds:   c.targetCreds,
 			Filter:        c.filter,
 			ArtHome:       c.home,
-		}, "", "", ""), "cannot export spec")
+		}), "cannot export spec")
 }
