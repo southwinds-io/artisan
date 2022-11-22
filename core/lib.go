@@ -211,8 +211,8 @@ func MergeEnvironmentVars(args []string, env map[string]string, interactive bool
 						// add the variable to the updated environment map
 						updatedEnv[name] = value
 					} else {
-						// if non-interactive then raise an error
-						RaiseErr("the environment variable '%s' is not defined, are you missing a binding? you can always run the command in interactive mode to manually input its value", name)
+						// changed behaviour to allow for empty variables, control of required values should be done at input level
+						// RaiseErr("the environment variable '%s' is not defined, are you missing a binding? you can always run the command in interactive mode to manually input its value", name)
 					}
 				}
 				// merges the variable
