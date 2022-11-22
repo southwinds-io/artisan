@@ -72,36 +72,76 @@ type Network struct {
 }
 
 func (n *Network) IPGroups(ipList ...string) (map[string]*Group, error) {
+	var err error
+	var upperLimit = 1000000
 	if hasDuplicates(ipList) {
 		return nil, fmt.Errorf("IPs in list must be unique")
 	}
 	result := make(map[string]*Group)
-	ipIx := 0
-	total := 0
+	ipIx, total := 0, 0
 	for _, group := range n.Groups {
 		parts := strings.Split(group, ":")
 		groupName := parts[0]
 		tags := strings.Split(parts[1], ",")
-		min, err := strconv.Atoi(parts[2])
+		var min, max int
+		min, err = strconv.Atoi(parts[2])
 		if err != nil {
 			return nil, fmt.Errorf("invalid minimum value in network group '%s'", groupName)
 		}
-		max, err := strconv.Atoi(parts[3])
-		if err != nil {
-			return nil, fmt.Errorf("invalid maximum value in network group '%s'", groupName)
+		if strings.EqualFold(parts[3], "*") {
+			max = upperLimit
+		} else {
+			max, err = strconv.Atoi(parts[3])
+			if err != nil {
+				return nil, fmt.Errorf("invalid maximum value in network group '%s'", groupName)
+			}
 		}
 		total = total + max
+		// totalMin = totalMin + min
 		g := &Group{
 			Tags: tags,
 			IPs:  make([]string, 0),
 		}
+		// allocates the minimum
 		for i := 0; i < min; i++ {
 			if len(ipList) <= ipIx {
-				return nil, fmt.Errorf("not enough IPs, need at least %d more", len(ipList)-ipIx+1)
+				return nil, fmt.Errorf("not enough IPs, need at least %d", ipIx+1)
 			}
 			g.IPs = append(g.IPs, ipList[ipIx])
 			result[groupName] = g
 			ipIx++
+		}
+	}
+	// if there are IPs left
+	for ipIx < len(ipList) {
+		// allocate the rest
+		for _, group := range n.Groups {
+			parts := strings.Split(group, ":")
+			if strings.EqualFold(parts[2], parts[3]) {
+				continue
+			}
+			if ipIx < len(ipList) {
+				if result[parts[0]] == nil {
+					result[parts[0]] = &Group{
+						Tags: strings.Split(parts[1], ","),
+						IPs:  make([]string, 0),
+					}
+				}
+				var length = 0
+				if !strings.EqualFold(parts[3], "*") {
+					length, err = strconv.Atoi(parts[3])
+				} else {
+					length = upperLimit
+				}
+				if err != nil {
+					return nil, err
+				}
+				if len(result[parts[0]].IPs) >= length {
+					continue
+				}
+				result[parts[0]].IPs = append(result[parts[0]].IPs, ipList[ipIx])
+				ipIx++
+			}
 		}
 	}
 	if total < len(ipList) {
