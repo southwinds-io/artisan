@@ -28,7 +28,11 @@ func RunApp(name *core.PackageName, credentials string, detached, clean bool, pa
 	pkg := r.FindPackageByName(name)
 	// if it is not, try and pull it
 	if pkg == nil {
-		pkg = r.Pull(name, credentials, false)
+		var err error
+		pkg, err = r.Pull(name, credentials, false)
+		if err != nil {
+			return err
+		}
 		// if the package is still nil
 		if pkg == nil {
 			return fmt.Errorf("cannot find package '%s' in remote registry", name.FullyQualifiedNameTag())

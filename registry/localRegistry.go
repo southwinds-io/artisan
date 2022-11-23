@@ -631,7 +631,7 @@ func (r *LocalRegistry) Push(name *core.PackageName, credentials string, showWar
 	return api.UploadPackage(name, localPackage.FileRef, zipfile, jsonfile, pack, uname, pwd, tls, r.ArtHome)
 }
 
-func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWarnings bool) *Package {
+func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWarnings bool) (*Package, error) {
 	// get a reference to the remote registry
 	api := r.api(name.Domain, r.ArtHome)
 	// get registry credentials
@@ -663,33 +663,45 @@ func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWar
 				core.WarningLogger.Printf("the connection to the registry is not secure, consider connecting to a TLS enabled registry\n")
 			}
 		} else {
-			core.CheckErr(err2, "art pull '%s' cannot retrieve repository information from registry", name.String())
+			if err2 != nil {
+				return nil, fmt.Errorf("art pull '%s' cannot retrieve repository information from registry", name.String())
+			}
 		}
 	}
 	// find the package to pull in the remote repository
 	remoteArt, exists := repo.GetTag(name.Tag)
 	if !exists {
 		// if it does not exist return
-		core.RaiseErr("package '%s', does not exist", name)
+		return nil, fmt.Errorf("package '%s', does not exist", name)
 	}
 	// check the package is not in the local registry
 	localPackage := r.findPackageByRepo(name)
 	// get the digest of the local package
 	var digestMismatch, localIsNewer bool
 	if localPackage != nil {
-		seal, err2 := r.GetSeal(localPackage)
-		core.CheckErr(err2, "cannot get local package seal")
+		seal, err := r.GetSeal(localPackage)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get local package seal: %s", err)
+		}
 		localDigest := seal.Digest
 		// get the digest of the remote package
 		remote, err := NewRemoteRegistry(name.Domain, uname, pwd, r.ArtHome)
-		core.CheckErr(err, "cannot create remote registry")
+		if err != nil {
+			return nil, fmt.Errorf("cannot create remote registry: %s", err)
+		}
 		remoteDigest, err, status := remote.GetDigest(name)
-		core.CheckErr(err, "cannot retrieve package digest, %d", status)
+		if err != nil {
+			return nil, fmt.Errorf("cannot retrieve package digest, %d %s", status, err)
+		}
 		digestMismatch = !strings.EqualFold(localDigest, remoteDigest.Value)
 		localTime, err := time.Parse(time.RFC850, seal.Manifest.Time)
-		core.CheckErr(err, "cannot parse package local time")
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse package local time: %s", err)
+		}
 		remoteTime, err := time.Parse(time.RFC850, remoteDigest.Date)
-		core.CheckErr(err, "cannot parse package local time")
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse package local time: %s", err)
+		}
 		localIsNewer = localTime.UnixNano() > remoteTime.UnixNano()
 	}
 	// if the local registry does not have the package or there is a mismatch of package digests
@@ -706,7 +718,9 @@ func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWar
 			api:      *api,
 		}
 		downErr := downloadFileRetry(sealDownloadInfo, attempts)
-		core.CheckErr(downErr, "failed to download package seal file")
+		if downErr != nil {
+			return nil, fmt.Errorf("failed to download package seal file: %s", downErr)
+		}
 		sealFilename := sealDownloadInfo.downloadedFilename
 
 		// download package zip file
@@ -719,38 +733,44 @@ func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWar
 			api:      *api,
 		}
 		downErr = downloadFileRetry(packageDownloadInfo, attempts)
-		core.CheckErr(downErr, "failed to download package zip file")
+		if downErr != nil {
+			return nil, fmt.Errorf("failed to download package zip file: %s", downErr)
+		}
 		packageFilename := packageDownloadInfo.downloadedFilename
-
 		var (
 			seal  *data.Seal
 			valid bool
 		)
 		seal, err = r.loadSeal(sealFilename)
-		core.CheckErr(err, "cannot load package seal")
-
+		if err != nil {
+			return nil, fmt.Errorf("cannot load package seal: %s", err)
+		}
 		// if the downloaded package digest does not match the one stored in the seal manifest
 		if valid, err = seal.Valid(packageFilename); !valid {
 			core.InfoLogger.Printf("package files corruption detected after download: %s, retrying %d times, stand by...\n", err, attempts)
 
 			// retry the download of the package seal file
 			downErr = downloadFileRetry(sealDownloadInfo, attempts)
-			core.CheckErr(downErr, "retry failed to download the package seal file")
+			if downErr != nil {
+				return nil, fmt.Errorf("retry failed to download the package seal file: %s", downErr)
+			}
 			sealFilename = sealDownloadInfo.downloadedFilename
 
 			// retry the download of the package zip file
 			downErr = downloadFileRetry(packageDownloadInfo, attempts)
-			core.CheckErr(downErr, "retry failed to download the package zip file")
+			if downErr != nil {
+				return nil, fmt.Errorf("retry failed to download the package zip file: %s", downErr)
+			}
 			packageFilename = packageDownloadInfo.downloadedFilename
-
 			if valid, err = seal.Valid(packageFilename); !valid {
-				core.RaiseErr("package files corruption detected after retry: %s", err)
+				return nil, fmt.Errorf("package files corruption detected after retry: %s", err)
 			}
 		}
-
 		// add the package to the local registry
-		err2 := r.Add(packageFilename, name, seal)
-		core.CheckErr(err2, "cannot add package to local registry")
+		err := r.Add(packageFilename, name, seal)
+		if err != nil {
+			return nil, fmt.Errorf("cannot add package to local registry: %s", err)
+		}
 	} else if localPackage != nil && digestMismatch {
 		core.InfoLogger.Printf("digest change detected\n")
 		// the packages exist in the local and remote registries but the digests are different
@@ -760,9 +780,11 @@ func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWar
 			core.InfoLogger.Printf("updating local package\n")
 			// remove the local package
 			err := r.Remove([]string{name.String()})
-			core.CheckErr(err, "failed to remove local package")
+			if err != nil {
+				return nil, fmt.Errorf("failed to remove local package: %s", err)
+			}
 			// pull the remote
-			r.Pull(name, fmt.Sprintf("%s:%s", uname, pwd), showWarnings)
+			return r.Pull(name, fmt.Sprintf("%s:%s", uname, pwd), showWarnings)
 		}
 	} else {
 		// if the remote package repository exists locally
@@ -792,7 +814,7 @@ func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWar
 			fmt.Printf("added package '%s' to repository '%s'\n", localPackage.Id, name.FullyQualifiedName())
 		}
 	}
-	return r.FindPackageByName(name)
+	return r.FindPackageByName(name), nil
 }
 
 func (r *LocalRegistry) loadSeal(sealFilename string) (*data.Seal, error) {
@@ -843,7 +865,10 @@ func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetP
 	// if not found locally
 	if pkg == nil {
 		// pull it
-		pkg = r.Pull(name, credentials, true)
+		pkg, err = r.Pull(name, credentials, true)
+		if err != nil {
+			return err
+		}
 	}
 	// get the package seal
 	seal, err := r.GetSeal(pkg)
@@ -925,8 +950,7 @@ func (r *LocalRegistry) removePkg(pkg *Package, artHome string) error {
 	if err != nil {
 		return err
 	}
-	r.save()
-	return nil
+	return r.save()
 }
 
 func (r *LocalRegistry) removeByName(name *core.PackageName) error {
@@ -974,8 +998,7 @@ func (r *LocalRegistry) removeByName(name *core.PackageName) error {
 			return err
 		}
 	}
-	r.save()
-	return nil
+	return r.save()
 }
 
 func (r *LocalRegistry) Remove(names []string) error {
@@ -1043,13 +1066,17 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 		repo  *Repository
 		files []core.TarFile
 		reg   = LocalRegistry{}
+		err   error
 	)
 	for _, name := range names {
 		// find the package metadata
 		repo = r.findRepository(&name)
 		// if not found locally, pull the package from remote (needs credentials)
 		if repo == nil {
-			pack = r.Pull(&name, sourceCreds, true)
+			pack, err = r.Pull(&name, sourceCreds, true)
+			if err != nil {
+				return err
+			}
 		} else {
 			pack = r.FindPackageByName(&name)
 		}
@@ -1090,7 +1117,7 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 	// creates a bytes buffer to record content of tar
 	tar := &bytes.Buffer{}
 	// tar the package files without preserving directory structure
-	err := core.Tar(files, tar, false, r.ArtHome)
+	err = core.Tar(files, tar, false, r.ArtHome)
 	if err != nil {
 		return err
 	}
@@ -1427,13 +1454,17 @@ func (r *LocalRegistry) file() string {
 }
 
 // save the state of the LocalRegistry
-func (r *LocalRegistry) save() {
+func (r *LocalRegistry) save() error {
 	regBytes := core.ToJsonBytes(r)
-	core.CheckErr(os.WriteFile(r.file(), regBytes, os.ModePerm), "fail to update local registry metadata")
+	err := os.WriteFile(r.file(), regBytes, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("fail to update local registry metadata: %s", err)
+	}
+	return nil
 }
 
 // Load the content of the LocalRegistry
-func (r *LocalRegistry) Load() {
+func (r *LocalRegistry) Load() error {
 	var (
 		regBytes []byte
 		err      error
@@ -1442,17 +1473,18 @@ func (r *LocalRegistry) Load() {
 	_, err = os.Stat(r.file())
 	if err != nil {
 		// then assume localRepo.json is not there: try and create it
-		r.save()
+		return r.save()
 	} else {
 		regBytes, err = os.ReadFile(r.file())
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		err = json.Unmarshal(regBytes, r)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
+	return nil
 }
 
 // find the Repository specified by name

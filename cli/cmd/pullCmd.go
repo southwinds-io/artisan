@@ -38,7 +38,7 @@ func NewPullCmd(artHome string) *PullCmd {
 }
 
 func (c *PullCmd) Run(cmd *cobra.Command, args []string) {
-	// check an package name has been provided
+	// check a package name has been provided
 	if len(args) == 0 {
 		log.Fatal("name of the package to pull is required")
 	}
@@ -50,5 +50,6 @@ func (c *PullCmd) Run(cmd *cobra.Command, args []string) {
 	// create a local registry
 	local := registry.NewLocalRegistry(c.artHome)
 	// attempt pull from remote registry
-	local.Pull(packageName, c.credentials, true)
+	_, err = local.Pull(packageName, c.credentials, true)
+	core.CheckErr(err, "cannot pull package '%s'", packageName)
 }

@@ -30,7 +30,15 @@ type Function struct {
 	Network *Network `json:"network,omitempty"`
 }
 
-// list the names of the inputs required by a function
+type Access string
+
+const (
+	AccessPublic   Access = "public"
+	AccessInternal Access = "internal"
+	AccessPrivate  Access = "private"
+)
+
+// InputBinding list the names of the inputs required by a function
 type InputBinding struct {
 	Var    []string `yaml:"var"`
 	Secret []string `yaml:"secret"`
@@ -38,12 +46,12 @@ type InputBinding struct {
 	File   []string `yaml:"file"`
 }
 
-// gets a slice of string with each element containing key=value
+// GetEnv gets a slice of string with each element containing key=value
 func (f *Function) GetEnv() map[string]string {
 	return f.Env
 }
 
-// survey all missing variables in the function
+// Survey all missing variables in the function
 // pass in any available environment variables so that they are not surveyed
 func (f *Function) Survey(env map[string]string) map[string]string {
 	// merges the function environment with the passed in environment
