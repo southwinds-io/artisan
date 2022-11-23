@@ -96,7 +96,7 @@ func runPackageFx(runtimeName, packageName, fxName, containerName, artRegistryUs
 		return err
 	}
 	// add add runtime vars
-	env.Add(core.ArtPackageName, packageName)
+	env.Add(core.ArtPackageFQDN, packageName)
 	env.Add(core.ArtFxName, fxName)
 	env.Add(core.ArtRegUser, artRegistryUser)
 	env.Add(core.ArtRegPassword, artRegistryPwd)

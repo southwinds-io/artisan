@@ -10,8 +10,16 @@ package core
 const (
 	// ArtDebug the global flag used to switch on debug / verbose mode
 	ArtDebug = "ART_DEBUG"
-	// ArtPackageName the env var that defines the name of the artisan package to run
+	// ArtPackageFQDN the env var that defines the name of the artisan package to run
+	ArtPackageFQDN = "ART_PACKAGE_FQDN"
+	// ArtPackageDomain the domain portion specified in the artisan package name
+	ArtPackageDomain = "ART_PACKAGE_DOMAIN"
+	// ArtPackageGroup the group portion specified in the artisan package name
+	ArtPackageGroup = "ART_PACKAGE_GROUP"
+	// ArtPackageName the name portion specified in the artisan package name
 	ArtPackageName = "ART_PACKAGE_NAME"
+	// ArtPackageTag the tag portion specified in the artisan package name
+	ArtPackageTag = "ART_PACKAGE_TAG"
 	// ArtFxName the env var that defines the name of the package function to run
 	ArtFxName = "ART_FX_NAME"
 	// ArtPackageSource the env var that defines the type of source a runner pipeline should use

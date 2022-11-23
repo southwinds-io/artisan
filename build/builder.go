@@ -705,7 +705,11 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 	// check the function is exported
 	if isExported(m, function) {
 		// inject runtime information
-		env.Add(core.ArtPackageName, name.FullyQualifiedNameTag())
+		env.Add(core.ArtPackageFQDN, name.FullyQualifiedNameTag())
+		env.Add(core.ArtPackageDomain, name.Domain)
+		env.Add(core.ArtPackageGroup, name.Group)
+		env.Add(core.ArtPackageName, name.Name)
+		env.Add(core.ArtPackageTag, name.Tag)
 		env.Add(core.ArtFxName, function)
 		// run the function on the open package
 		err := b.Run(function, path, interactive, env)

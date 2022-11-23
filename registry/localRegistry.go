@@ -504,7 +504,7 @@ func (r *LocalRegistry) GetNetwork(packageName string, functionName string) (*da
 	}
 	seal, err := r.GetSeal(p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot retrieve seal: %s", err)
 	}
 	fx := seal.Manifest.Fx(functionName)
 	if fx == nil {
