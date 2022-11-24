@@ -560,9 +560,6 @@ func (b *Builder) createSeal(profile *data.Profile, openP, runP, signP string) (
 		Time:    time.Now().Format(time.RFC850),
 		Size:    bytesToLabel(zipInfo.Size()),
 	}
-	if profile.X != nil {
-		info.X = profile.X
-	}
 	// take the hash of the zip file and seal info combined
 	s := new(data.Seal)
 	// the seal needs the manifest to create a checksum

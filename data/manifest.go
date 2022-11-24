@@ -53,7 +53,6 @@ type Manifest struct {
 	OpenPolicy string    `json:"open_policy,omitempty"`
 	RunPolicy  string    `json:"run_policy,omitempty"`
 	SignPolicy string    `json:"sign_policy,omitempty"`
-	X          []string  `json:"x,omitempty"`
 }
 
 func (m Manifest) Fx(name string) *FxInfo {
@@ -66,9 +65,8 @@ func (m Manifest) Fx(name string) *FxInfo {
 }
 
 type Network struct {
-	VendorId string   `yaml:"id"`
-	Groups   []string `yaml:"groups"`
-	Rules    []string `yaml:"rules"`
+	Groups []string `yaml:"groups"`
+	Rules  []string `yaml:"rules"`
 }
 
 func (n *Network) IPGroups(ipList ...string) (map[string]*Group, error) {

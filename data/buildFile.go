@@ -188,9 +188,6 @@ func (b *BuildFile) Validate() (bool, error) {
 			if fx.Export == nil || !*fx.Export {
 				return false, fmt.Errorf("network definition found in non exported function '%s'", fx.Name)
 			}
-			if len(fx.Network.VendorId) == 0 {
-				return false, fmt.Errorf("id is missing in network definition for function %s", fx.Name)
-			}
 			for _, group := range fx.Network.Groups {
 				if len(strings.Split(group, ":")) != 4 {
 					return false, fmt.Errorf("group declaration in network definition for function %s is incorrect: '%s', it must have 4 sections separated by ':' such as 'NAME:TAGS:MIN:MAX'", fx.Name, group)

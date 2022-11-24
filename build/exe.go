@@ -86,12 +86,13 @@ func ExeAsync(cmd string, dir string, env *merge.Envar, interactive bool) (strin
 
 	// wait for the command to complete
 	if err = command.Wait(); err != nil {
-		core.Debug("ExecAsync() error: %s \n"+
-			"STDOUT: %s\n"+
-			"STDERR: %s", err, sOut.String(), sErr.String())
+		core.Debug("stdout='%s'", sOut.String())
+		if err != nil || len(sErr.String()) > 0 {
+			core.Debug("artisan runner exec error: '%s' - stderr='%s'", err, sErr.String())
+		}
 		// only happens if the command exits with os.Exit(>0)
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			core.Debug("ExecAsync() error from os.Exit > 0 => %s", exitErr)
+			core.Debug("artisan runner exec error from os.Exit == %d: '%s'", exitErr.ExitCode(), string(exitErr.Stderr[:]))
 			var v syscall.WaitStatus
 			if v, ok = exitErr.Sys().(syscall.WaitStatus); ok {
 				core.Debug("WaitStatus = %d", v)
@@ -100,9 +101,7 @@ func ExeAsync(cmd string, dir string, env *merge.Envar, interactive bool) (strin
 		}
 		return sOut.String(), err
 	}
-	core.Debug("ExecAsync() successful: \n"+
-		"STDOUT: %s\n"+
-		"STDERR: %s", sOut.String(), sErr.String())
+	core.Debug("artisan runner exec successful, stdout='%s'", sOut.String())
 	return sOut.String(), nil
 }
 

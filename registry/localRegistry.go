@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"golang.org/x/exp/slices"
 	"io"
+	"net/http"
 
 	"log"
 	"os"
@@ -597,8 +598,11 @@ func (r *LocalRegistry) Push(name *core.PackageName, credentials string, showWar
 	}
 	// if the package does not exist in the remote registry, it could be that the name:tag is already used by another package
 	// so, it checks if the tag has been applied to another package in the remote repository
-	repo, err, _ := api.GetRepositoryInfo(name.Group, name.Name, uname, pwd, tls)
+	repo, err, status := api.GetRepositoryInfo(name.Group, name.Name, uname, pwd, tls)
 	if err != nil {
+		if status == http.StatusUnauthorized {
+			return fmt.Errorf("unauthorised access to registry, check your credentials")
+		}
 		return fmt.Errorf("art push '%s' cannot retrieve repository information from registry", name.String())
 	}
 	// if the tag is in use
