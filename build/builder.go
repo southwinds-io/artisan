@@ -375,11 +375,17 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 		b.from = path
 	}
 	// get the build file environment and merge any subshell command
-	vars := b.evalSubshell(b.buildFile.GetEnv(), path, env, interactive)
+	vars, err := b.evalSubshell(b.buildFile.GetEnv(), path, env, interactive)
+	if err != nil {
+		return err
+	}
 	// add the merged vars to the env
 	env = env.Append(vars)
 	// get the fx environment and merge any subshell command
-	vars = b.evalSubshell(fx.GetEnv(), path, env, interactive)
+	vars, err = b.evalSubshell(fx.GetEnv(), path, env, interactive)
+	if err != nil {
+		return err
+	}
 	// combine the current environment with the function environment
 	buildEnv := env.Append(vars)
 	// add build specific variables
@@ -428,7 +434,10 @@ func (b *Builder) runProfile(profileName string, execDir string, interactive boo
 	// construct an environment with the vars at build file level
 	env := merge.NewEnVarFromSlice(os.Environ())
 	// get the build file environment and merge any subshell command
-	vars := b.evalSubshell(b.buildFile.GetEnv(), execDir, env, interactive)
+	vars, err := b.evalSubshell(b.buildFile.GetEnv(), execDir, env, interactive)
+	if err != nil {
+		return nil, err
+	}
 	// add the merged vars to the env
 	env = env.Append(vars)
 	if b.buildFile.Profiles == nil {
@@ -440,7 +449,10 @@ func (b *Builder) runProfile(profileName string, execDir string, interactive boo
 		if len(profileName) > 0 && profile.Name == profileName {
 			core.Debug("using build profile '%s'\n", profile.Name)
 			// get the profile environment and merge any subshell command
-			vars = b.evalSubshell(profile.GetEnv(), execDir, env, interactive)
+			vars, err = b.evalSubshell(profile.GetEnv(), execDir, env, interactive)
+			if err != nil {
+				return nil, err
+			}
 			// combine the current environment with the profile environment
 			buildEnv := env.Append(vars)
 			// add build specific variables
@@ -498,7 +510,7 @@ func (b *Builder) runProfile(profileName string, execDir string, interactive boo
 }
 
 // evaluate sub-shells and replace their values in the variables
-func (b *Builder) evalSubshell(vars map[string]string, execDir string, env *merge.Envar, interactive bool) map[string]string {
+func (b *Builder) evalSubshell(vars map[string]string, execDir string, env *merge.Envar, interactive bool) (map[string]string, error) {
 	// if env is nil then create one injecting the artisan build environment variables
 	if env == nil {
 		env = merge.NewEnVarFromMap(b.getBuildEnv())
@@ -515,14 +527,16 @@ func (b *Builder) evalSubshell(vars map[string]string, execDir string, env *merg
 		vars[k] = s[0]
 		if ok, expr, shell := core.HasShell(v); ok {
 			out, err := Exe(shell, execDir, env, interactive)
-			core.CheckErr(err, "cannot execute subshell command: %s", v)
+			if err != nil {
+				return nil, fmt.Errorf("cannot execute subshell command '%s': %s", v, expr)
+			}
 			// ensure the subshell output does not end with newline
 			out = core.TrimNewline(out)
 			// merges the output of the subshell in the original variable
 			vars[k] = strings.Replace(v, expr, out, -1)
 		}
 	}
-	return vars
+	return vars, nil
 }
 
 // return an absolute path using the working directory as base
