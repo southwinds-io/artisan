@@ -528,7 +528,7 @@ func (b *Builder) evalSubshell(vars map[string]string, execDir string, env *merg
 		if ok, expr, shell := core.HasShell(v); ok {
 			out, err := Exe(shell, execDir, env, interactive)
 			if err != nil {
-				return nil, fmt.Errorf("cannot execute subshell command '%s': %s", v, expr)
+				return nil, fmt.Errorf("cannot execute subshell command '%s': %s", v, err)
 			}
 			// ensure the subshell output does not end with newline
 			out = core.TrimNewline(out)
