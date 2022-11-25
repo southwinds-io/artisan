@@ -56,5 +56,5 @@ func (c *RunCmd) Run(cmd *cobra.Command, args []string) {
 	// merge with existing environment
 	env.Merge(env2)
 	// execute the function
-	builder.Run(function, path, *c.interactive, env)
+	core.CheckErr(builder.Run(function, path, *c.interactive, env), "")
 }
