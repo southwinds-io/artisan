@@ -22,6 +22,13 @@ type Envar struct {
 	Vars map[string]string
 }
 
+func (e *Envar) Get(key string) string {
+	if val, ok := e.Vars[key]; ok {
+		return val
+	}
+	return ""
+}
+
 // Group used by golang text.Template to return a map of key / values for vars that whose base name is the same
 // but have been suffixed with an incremental index number
 func (e *Envar) Group(groupName reflect.Value) reflect.Value {
