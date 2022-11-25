@@ -96,7 +96,7 @@ func ExeAsync(cmd string, dir string, env *merge.Envar, interactive bool) (strin
 			var v syscall.WaitStatus
 			if v, ok = exitErr.Sys().(syscall.WaitStatus); ok {
 				core.Debug("WaitStatus = %d", v)
-				return sOut.String(), fmt.Errorf("run command failed: '%s' (%s) - %s\n", cmd, exitMsg(exitErr.ExitCode()), sErr.String())
+				return sOut.String(), fmt.Errorf("run command failed: '%s'- %s - %s (%s)", cmd, sErr.String(), exitErr, exitMsg(exitErr.ExitCode()))
 			}
 		}
 		return sOut.String(), err
@@ -153,7 +153,7 @@ func Exe(cmd string, dir string, env *merge.Envar, interactive bool) (string, er
 		// only happens if the command exits with os.Exit(>0)
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if _, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				return "", fmt.Errorf("run command failed: '%s'\n%s (%s)", cmd, errbuf.String(), exitMsg(exitErr.ExitCode()))
+				return "", fmt.Errorf("run command failed: '%s'- %s - %s (%s)", cmd, errbuf.String(), exitErr, exitMsg(exitErr.ExitCode()))
 			}
 		}
 		return "", err
