@@ -668,7 +668,7 @@ func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWar
 			}
 		} else {
 			if err2 != nil {
-				return nil, fmt.Errorf("art pull '%s' cannot retrieve repository information from registry", name.String())
+				return nil, fmt.Errorf("art pull '%s' cannot retrieve repository information from registry: %s", name.String(), err2)
 			}
 		}
 	}
