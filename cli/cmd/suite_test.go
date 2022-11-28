@@ -37,7 +37,7 @@ func TestExeC(t *testing.T) {
 
 func TestExe(t *testing.T) {
 	packageName, err := core.ParseName("test")
-	fxName := "t1"
+	fxName := "test"
 	builder := build.NewBuilder(core.ArtDefaultHome)
 	core.CheckErr(err, "cannot initialise builder")
 	env, err := merge.NewEnVarFromFile(".env")
@@ -46,13 +46,16 @@ func TestExe(t *testing.T) {
 		t.FailNow()
 	}
 	// launch a runtime to execute the function
-	builder.Execute(packageName, fxName, "admin:sss", true, "", false, env)
+	err = builder.Execute(packageName, fxName, "admin:sss", true, "", false, env, []string{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestBuild(t *testing.T) {
 	packageName, _ := core.ParseName("test")
 	builder := build.NewBuilder(core.ArtDefaultHome)
-	builder.Build(".", "", "", packageName, "", false, false, "")
+	builder.Build(".", "", "", packageName, "", false, false, "", "", "", "")
 }
 
 func TestRunC(t *testing.T) {
@@ -169,7 +172,7 @@ func TestImport(t *testing.T) {
 	// create a local registry
 	r := registry.NewLocalRegistry(core.ArtDefaultHome)
 	// import the tar archive(s)
-	err := r.Import([]string{"../archive.tar"}, "", nil)
+	err := r.Import([]string{"../archive.tar"}, "", nil, []string{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -32,4 +32,13 @@ const (
 	ArtRegPassword = "ART_REG_PWD"
 	// ArtDefaultHome the default artisan home
 	ArtDefaultHome = ""
+
+	ArtReference = "ART_REF"
+	ArtBuildPath = "ART_BUILD_PATH"
+	ArtGitCommit = "ART_GIT_COMMIT"
+	ArtWorkDir   = "ART_WORK_DIR"
+	ArtFromUri   = "ART_FROM_URI"
+	ArtOS        = "ART_OS"
+	ArtArch      = "ART_ARCH"
+	ArtShell     = "ART_SHELL"
 )

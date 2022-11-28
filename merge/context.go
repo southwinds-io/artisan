@@ -32,7 +32,7 @@ func NewContext(env Envar) (*Context, error) {
 }
 
 func (c *Context) Exists(variableName reflect.Value) reflect.Value {
-	_, exists := c.env.Vars[variableName.String()]
+	exists := len(c.env.Get(variableName.String())) > 0
 	return reflect.ValueOf(exists)
 }
 
@@ -41,7 +41,7 @@ func (c *Context) Var(name reflect.Value) reflect.Value {
 	return reflect.ValueOf(c.loader.vars[name.String()])
 }
 
-// Select select a specific variable group and populate all variable sets within the group
+// Select a specific variable group and populate all variable sets within the group
 func (c *Context) Select(group reflect.Value) reflect.Value {
 	c.currentGroup = group.String()
 	ii := c.loader.indices(c.currentGroup)

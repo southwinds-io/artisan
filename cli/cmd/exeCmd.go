@@ -53,8 +53,6 @@ func (c *ExeCmd) Run(cmd *cobra.Command, args []string) {
 		pack     = args[0]
 		function = args[1]
 	)
-	// get a builder handle
-	builder := build.NewBuilder(c.home)
 	name, err := core.ParseName(pack)
 	i18n.Err("", err, i18n.ERR_INVALID_PACKAGE_NAME)
 	// add the build file level environment variables
@@ -64,7 +62,9 @@ func (c *ExeCmd) Run(cmd *cobra.Command, args []string) {
 	core.CheckErr(err, "failed to load environment file '%s'", c.envFilename)
 	// merge with existing environment
 	env.Merge(env2)
+	// get a builder handle
+	builder := build.NewBuilder(c.home)
 	// run the function on the open package
-	err = builder.Execute(name, function, c.credentials, *c.interactive, c.path, *c.preserveFiles, env, []string{})
+	err = builder.Execute(name, function, c.credentials, *c.interactive, c.path, *c.preserveFiles, env, []string{}, false)
 	core.CheckErr(err, "failed to execute function")
 }

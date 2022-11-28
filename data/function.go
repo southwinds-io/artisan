@@ -8,6 +8,7 @@
 package data
 
 import (
+	"southwinds.dev/artisan/conf"
 	"southwinds.dev/artisan/core"
 )
 
@@ -53,10 +54,10 @@ func (f *Function) GetEnv() map[string]string {
 
 // Survey all missing variables in the function
 // pass in any available environment variables so that they are not surveyed
-func (f *Function) Survey(env map[string]string) map[string]string {
+func (f *Function) Survey(env conf.Configuration) conf.Configuration {
 	// merges the function environment with the passed in environment
 	for k, v := range f.Env {
-		env[k] = v
+		env.Set(k, v)
 	}
 	// attempt to merge any environment variable in the run commands
 	// run the merge in interactive mode so that any variables not available in the build file environment are surveyed

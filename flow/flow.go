@@ -38,7 +38,6 @@ type Flow struct {
 	// for example using a target namespace if running in Kubernetes
 	Labels      map[string]string `yaml:"labels" json:"labels"`
 	Git         *Git              `yaml:"git,omitempty" json:"git,omitempty"`
-	AppIcon     string            `yaml:"app_icon,omitempty" json:"app_icon,omitempty"`
 	Steps       []*Step           `yaml:"steps" json:"steps"`
 	Input       *data.Input       `yaml:"input,omitempty" json:"input,omitempty"`
 	UseRuntimes *bool             `yaml:"use_runtimes,omitempty" json:"use_runtimes,omitempty"`

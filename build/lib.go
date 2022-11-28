@@ -11,32 +11,19 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"southwinds.dev/artisan/core"
-	"southwinds.dev/artisan/data"
-	"southwinds.dev/artisan/merge"
-
 	"log"
 	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
+	"southwinds.dev/artisan/conf"
+	"southwinds.dev/artisan/core"
+	"southwinds.dev/artisan/data"
 	"strconv"
 	"strings"
 	"time"
 )
-
-// merge two or more maps
-// the latter map overrides the former if duplicate keys exist across the two maps
-func mergeMaps(ms ...map[string]string) map[string]string {
-	res := map[string]string{}
-	for _, m := range ms {
-		for k, v := range m {
-			res[k] = v
-		}
-	}
-	return res
-}
 
 // zip a file or a folder
 func zipSource(source, target string, excludeSource []string) error {
@@ -209,7 +196,7 @@ func round(val float64, roundOn float64, places int) (newVal float64) {
 }
 
 // executes a command and sends output and error streams to stdout and stderr
-func execute(cmd string, dir string, env *merge.Envar, interactive bool) (err error) {
+func execute(cmd string, dir string, env conf.Configuration, interactive bool) (err error) {
 	// executes the command
 	_, err = ExeAsync(cmd, dir, env, interactive)
 	// if there is an error return it

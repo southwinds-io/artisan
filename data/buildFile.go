@@ -11,7 +11,10 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"os"
+	"runtime"
+	"southwinds.dev/artisan/conf"
 	"southwinds.dev/artisan/core"
+	"southwinds.dev/artisan/merge"
 
 	"path/filepath"
 	"strings"
@@ -25,8 +28,6 @@ type BuildFile struct {
 	GitURI string `yaml:"git_uri,omitempty"`
 	// the runtime to use to run functions
 	Runtime string `yaml:"runtime,omitempty"`
-	// the icon to use in a tekton pipeline
-	AppIcon string `yaml:"app_icon,omitempty"`
 	// the environment variables that apply to the build
 	// any variables defined at this level will be available to all build profiles
 	// in addition, the defined variables are added on top of the existing environment
@@ -40,6 +41,8 @@ type BuildFile struct {
 	Profiles []*Profile `yaml:"profiles,omitempty"`
 	// a list of functions containing a list of commands to execute
 	Functions []*Function `yaml:"functions"`
+	// include other build files
+	Includes []interface{} `yaml:"includes"`
 }
 
 func (b *BuildFile) GetEnv() map[string]string {
@@ -120,7 +123,7 @@ func (b *BuildFile) Profile(name string) *Profile {
 }
 
 // Survey all missing variables in the profile
-func (p *Profile) Survey(bf *BuildFile) map[string]string {
+func (p *Profile) Survey(bf *BuildFile) conf.Configuration {
 	env := bf.Env
 	// merges the profile environment with the passed in environment
 	for k, v := range p.Env {
@@ -128,13 +131,13 @@ func (p *Profile) Survey(bf *BuildFile) map[string]string {
 	}
 	// attempt to merge any environment variable in the profile run commands
 	// run the merge in interactive mode so that any variables not available in the build file environment are surveyed
-	_, updatedEnvironment := core.MergeEnvironmentVars(p.Run, env, true)
+	_, updatedEnvironment := core.MergeEnvironmentVars(p.Run, merge.NewEnVarFromMap(env), true)
 	// attempt to merge any environment variable in the functions run commands
 	for _, run := range p.Run {
 		// if the run line has a function
 		if ok, fxName := core.HasFunction(run); ok {
 			// merge any variables on the function
-			env = bf.Fx(fxName).Survey(env)
+			env = bf.Fx(fxName).Survey(merge.NewEnVarFromMap(env)).Vars()
 		}
 	}
 	return updatedEnvironment
@@ -161,6 +164,55 @@ func LoadBuildFile(path string) (*BuildFile, error) {
 	if ok, validErr := buildFile.Validate(); !ok {
 		return buildFile, validErr
 	}
+	if buildFile.Env == nil {
+		buildFile.Env = map[string]string{}
+	}
+	ev := merge.NewEnVarFromMap(buildFile.Env)
+	ev.Replace()
+	buildFile.Env = ev.Vars()
+	buildFile.Env[core.ArtOS] = runtime.GOOS
+	buildFile.Env[core.ArtArch] = runtime.GOARCH
+	buildFile.Env[core.ArtShell] = os.Getenv("SHELL")
+	for _, include := range buildFile.Includes {
+		switch i := include.(type) {
+		case string:
+			file, _ := filepath.Abs(filepath.Join(filepath.Dir(buildFile.path), i))
+			child, err := LoadBuildFile(file)
+			if err != nil {
+				return nil, err
+			}
+			buildFile.Env = conf.MergeMaps(buildFile.Env, child.Env)
+			buildFile.Profiles = append(buildFile.Profiles, child.Profiles...)
+			buildFile.Functions = append(buildFile.Functions, child.Functions...)
+			buildFile.Labels = conf.MergeMaps(buildFile.Labels, child.Labels)
+		case []interface{}:
+			incl := true
+			for _, condition := range i[1:] {
+				eq := strings.Split(condition.(string), "=")
+				if len(eq) == 2 {
+					value := buildFile.Env[eq[0]]
+					incl = incl && strings.EqualFold(value, eq[1])
+				}
+				neq := strings.Split(condition.(string), "!=")
+				if len(neq) == 2 {
+					value := buildFile.Env[neq[0]]
+					incl = incl && !strings.EqualFold(value, eq[1])
+				}
+			}
+			if incl {
+				file, _ := filepath.Abs(filepath.Join(filepath.Dir(buildFile.path), i[0].(string)))
+				child, err := LoadBuildFile(file)
+				if err != nil {
+					return nil, err
+				}
+				buildFile.Env = conf.MergeMaps(buildFile.Env, child.Env)
+				buildFile.Profiles = append(buildFile.Profiles, child.Profiles...)
+				buildFile.Functions = append(buildFile.Functions, child.Functions...)
+				buildFile.Labels = conf.MergeMaps(buildFile.Labels, child.Labels)
+			}
+		}
+	}
+
 	return buildFile, nil
 }
 

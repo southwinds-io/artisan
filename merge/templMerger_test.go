@@ -13,7 +13,7 @@ import (
 )
 
 func TestMergeUsingFunctions(t *testing.T) {
-	e := &Envar{Vars: map[string]string{}}
+	e := &Envar{vars: map[string]string{}}
 	// this is an ordinary variable
 	e.Vars["TITLE"] = "Example of merging Grouped Variables"
 
@@ -52,7 +52,7 @@ func TestMergeUsingFunctions(t *testing.T) {
 }
 
 func TestMergeUsingOperators(t *testing.T) {
-	e := &Envar{Vars: map[string]string{}}
+	e := &Envar{vars: map[string]string{}}
 	// this is an ordinary variable
 	e.Vars["TITLE"] = "Example of merging Grouped Variables"
 

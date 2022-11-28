@@ -13,6 +13,8 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/uuid"
+	"regexp"
+	"southwinds.dev/artisan/conf"
 	"southwinds.dev/artisan/core"
 	"southwinds.dev/artisan/data"
 	"southwinds.dev/artisan/merge"
@@ -40,7 +42,7 @@ type Builder struct {
 	localReg         *registry.LocalRegistry
 	shouldCopySource bool
 	loadFrom         string
-	env              *merge.Envar
+	env              conf.Configuration
 	artHome          string
 	sProc            BuildHandler
 	vProc            data.VerifyHandler
@@ -79,7 +81,7 @@ func (b *Builder) Build(from, fromPath, gitToken string, name *core.PackageName,
 		return err
 	}
 	// merge env with target
-	mergedTarget, _ := core.MergeEnvironmentVars([]string{buildProfile.Target}, b.env.Vars, interactive)
+	mergedTarget, _ := core.MergeEnvironmentVars([]string{buildProfile.Target}, b.env, interactive)
 	// set the merged target for later use
 	buildProfile.MergedTarget = mergedTarget[0]
 	// wait for the target to be created in the file system
@@ -116,7 +118,7 @@ func (b *Builder) Build(from, fromPath, gitToken string, name *core.PackageName,
 }
 
 // Run execute the specified function
-func (b *Builder) Run(function string, path string, interactive bool, env *merge.Envar) error {
+func (b *Builder) Run(function string, path string, interactive bool, env conf.Configuration) error {
 	// if no path is specified use .
 	if len(path) == 0 {
 		path = "."
@@ -357,9 +359,10 @@ func (b *Builder) getIgnored() []string {
 }
 
 // run a specified function
-func (b *Builder) runFunction(function string, path string, interactive bool, env *merge.Envar) error {
+func (b *Builder) runFunction(function string, path string, interactive bool, env conf.Configuration) error {
 	// if in debug mode, print environment variables
-	env.Debug(fmt.Sprintf("executing function: %s\n", function))
+	core.Debug(fmt.Sprintf("executing function: %s\n", function))
+	core.Debug(env.String())
 	// if inputs are defined for the function then survey for data
 	i := data.SurveyInputFromBuildFile(function, b.buildFile, interactive, false, env, b.artHome)
 	// merge the collected input with the current environment
@@ -417,7 +420,7 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 			}
 		} else {
 			// execute the statement
-			err := execute(cmd, path, buildEnv, interactive)
+			err = execute(cmd, path, buildEnv, interactive)
 			if err != nil {
 				return fmt.Errorf("cannot execute command %s: %s", cmd, err)
 			}
@@ -431,8 +434,9 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 // if a default profile has not been defined, then uses the first profile in the build file
 // returns the profile used
 func (b *Builder) runProfile(profileName string, execDir string, interactive bool) (*data.Profile, error) {
+	var env conf.Configuration
 	// construct an environment with the vars at build file level
-	env := merge.NewEnVarFromSlice(os.Environ())
+	env = merge.NewEnVarFromSlice(os.Environ())
 	// get the build file environment and merge any subshell command
 	vars, err := b.evalSubshell(b.buildFile.GetEnv(), execDir, env, interactive)
 	if err != nil {
@@ -510,30 +514,43 @@ func (b *Builder) runProfile(profileName string, execDir string, interactive boo
 }
 
 // evaluate sub-shells and replace their values in the variables
-func (b *Builder) evalSubshell(vars map[string]string, execDir string, env *merge.Envar, interactive bool) (map[string]string, error) {
+func (b *Builder) evalSubshell(vars map[string]string, execDir string, env conf.Configuration, interactive bool) (map[string]string, error) {
 	// if env is nil then create one injecting the artisan build environment variables
 	if env == nil {
 		env = merge.NewEnVarFromMap(b.getBuildEnv())
 	} else {
 		// otherwise, add the artisan build environment variables to the existing environment
-		env.Merge(merge.NewEnVarFromMap(b.getBuildEnv()))
+		env.MergeMap(b.getBuildEnv())
 	}
 	// ensures env contains the variables in vars
-	env.Vars = mergeMaps(env.Vars, vars)
+	env.MergeMap(vars)
 	for k, v := range vars {
 		// merge any existing variables in the variable
-		s, _ := core.MergeEnvironmentVars([]string{v}, env.Vars, false)
+		s, _ := core.MergeEnvironmentVars([]string{v}, env, false)
 		// update the value with merged expression
 		vars[k] = s[0]
 		if ok, expr, shell := core.HasShell(v); ok {
+			usesArtisan := strings.Contains(shell, "art ")
 			out, err := Exe(shell, execDir, env, interactive)
 			if err != nil {
 				return nil, fmt.Errorf("cannot execute subshell command '%s': %s", v, err)
 			}
 			// ensure the subshell output does not end with newline
 			out = core.TrimNewline(out)
-			// merges the output of the subshell in the original variable
-			vars[k] = strings.Replace(v, expr, out, -1)
+			// if subshell uses art command then check for safe output
+			if usesArtisan && len(out) > 0 {
+				r, _ := regexp.Compile("{{.*}}")
+				if matched := r.MatchString(shell); matched {
+					out = r.FindString(shell)
+					// merges the output of the subshell in the original variable
+					vars[k] = strings.Replace(v, expr, out[2:len(s)-2], -1)
+				} else {
+					return nil, fmt.Errorf("non-empty returned value of subshell expression '%s', must be enclosed by double curly braces '{{...}}' markers to prevent potential corruption due to debug statements", shell)
+				}
+			} else {
+				// merges the output of the subshell in the original variable
+				vars[k] = strings.Replace(v, expr, out, -1)
+			}
 		}
 	}
 	return vars, nil
@@ -553,7 +570,7 @@ func (b *Builder) inSourceDirectory(relativePath string) string {
 func (b *Builder) createSeal(profile *data.Profile, openP, runP, signP string) (*data.Seal, error) {
 	filename := b.uniqueIdName
 	// merge the labels in the profile with the ones at the build file level
-	labels := mergeMaps(b.buildFile.Labels, profile.Labels)
+	labels := conf.MergeMaps(b.buildFile.Labels, profile.Labels)
 	// gets the size of the package
 	zipInfo, err := os.Stat(b.WorkDirPackageFilename())
 	if err != nil {
@@ -669,16 +686,17 @@ func (b *Builder) copySource(from string, profile *data.Profile) bool {
 // prepares build specific environment variables
 func (b *Builder) getBuildEnv() map[string]string {
 	var env = make(map[string]string)
-	env["ARTISAN_REF"] = b.uniqueIdName
-	env["ARTISAN_BUILD_PATH"] = b.loadFrom
-	env["ARTISAN_GIT_COMMIT"] = b.commit
-	env["ARTISAN_WORK_DIR"] = b.workingDir
-	env["ARTISAN_FROM_URI"] = b.from
+	env[core.ArtReference] = b.uniqueIdName
+	env["ARTISAN_REF"] = b.uniqueIdName // backwards compatibility
+	env[core.ArtBuildPath] = b.loadFrom
+	env[core.ArtGitCommit] = b.commit
+	env[core.ArtWorkDir] = b.workingDir
+	env[core.ArtFromUri] = b.from
 	return env
 }
 
 // Execute an exported function in a package
-func (b *Builder) Execute(name *core.PackageName, function string, credentials string, interactive bool, path string, preserveFiles bool, env *merge.Envar, authorisedAuthors []string) error {
+func (b *Builder) Execute(name *core.PackageName, function string, credentials string, interactive bool, path string, preserveFiles bool, env conf.Configuration, authorisedAuthors []string, ignoreExports bool) error {
 	// get a local registry handle
 	local := registry.NewLocalRegistry(b.artHome)
 	// check the run path exist
@@ -714,16 +732,16 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 			"ensure the package is built under the executing OS\n", m.OS, runtime.GOOS)
 	}
 	// check the function is exported
-	if isExported(m, function) {
+	if isExported(m, function) || ignoreExports {
 		// inject runtime information
-		env.Add(core.ArtPackageFQDN, name.FullyQualifiedNameTag())
-		env.Add(core.ArtPackageDomain, name.Domain)
-		env.Add(core.ArtPackageGroup, name.Group)
-		env.Add(core.ArtPackageName, name.Name)
-		env.Add(core.ArtPackageTag, name.Tag)
-		env.Add(core.ArtFxName, function)
+		env.Set(core.ArtPackageFQDN, name.FullyQualifiedNameTag())
+		env.Set(core.ArtPackageDomain, name.Domain)
+		env.Set(core.ArtPackageGroup, name.Group)
+		env.Set(core.ArtPackageName, name.Name)
+		env.Set(core.ArtPackageTag, name.Tag)
+		env.Set(core.ArtFxName, function)
 		// run the function on the open package
-		err := b.Run(function, path, interactive, env)
+		err = b.Run(function, path, interactive, env)
 		if err != nil {
 			return err
 		}

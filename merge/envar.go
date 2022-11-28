@@ -11,29 +11,33 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"southwinds.dev/artisan/core"
-
 	"reflect"
+	"southwinds.dev/artisan/conf"
+	"southwinds.dev/artisan/core"
 	"strconv"
 	"strings"
 )
 
 type Envar struct {
-	Vars map[string]string
+	vars map[string]string
 }
 
 func (e *Envar) Get(key string) string {
-	if val, ok := e.Vars[key]; ok {
+	if val, ok := e.vars[key]; ok {
 		return val
 	}
 	return ""
+}
+
+func (e *Envar) Set(key, value string) {
+	e.vars[key] = value
 }
 
 // Group used by golang text.Template to return a map of key / values for vars that whose base name is the same
 // but have been suffixed with an incremental index number
 func (e *Envar) Group(groupName reflect.Value) reflect.Value {
 	result := make(map[string]string)
-	for name, value := range e.Vars {
+	for name, value := range e.vars {
 		i := strings.LastIndex(name, "_")
 		if i > 0 {
 			prefix := name[0:i]
@@ -50,7 +54,7 @@ func (e *Envar) Group(groupName reflect.Value) reflect.Value {
 
 func NewEnVarFromMap(v map[string]string) *Envar {
 	return &Envar{
-		Vars: v,
+		vars: v,
 	}
 }
 
@@ -82,7 +86,7 @@ func NewEnVarFromFile(envFile string) (*Envar, error) {
 	}
 	core.Debug("loaded environment file: %s\n", envFile)
 	return &Envar{
-		Vars: outMap,
+		vars: outMap,
 	}, nil
 }
 
@@ -99,7 +103,7 @@ func removeTrail(value string) string {
 
 func NewEnVarFromSlice(v []string) *Envar {
 	ev := &Envar{
-		Vars: make(map[string]string),
+		vars: make(map[string]string),
 	}
 	for _, s := range v {
 		kv := strings.SplitN(s, "=", 2)
@@ -108,46 +112,60 @@ func NewEnVarFromSlice(v []string) *Envar {
 	return ev
 }
 
+func NewEnVarEmpty() *Envar {
+	return NewEnVarFromSlice([]string{})
+}
 func (e *Envar) Add(key, value string) {
-	e.Vars[key] = value
+	e.vars[key] = value
 }
 
 func (e *Envar) Slice() []string {
 	var result []string
-	for k, v := range e.Vars {
+	for k, v := range e.vars {
 		result = append(result, fmt.Sprintf("%s=%s", k, v))
 	}
 	return result
 }
 
-func (e *Envar) Append(v map[string]string) *Envar {
+func (e *Envar) Append(v map[string]string) conf.Configuration {
 	var result = make(map[string]string)
-	result = e.Vars
+	result = e.vars
 	for k, v := range v {
 		result[k] = v
 	}
+	e.Replace()
 	return NewEnVarFromMap(result)
 }
 
-func (e *Envar) Merge(env *Envar) {
-	for key, value := range env.Vars {
-		e.Vars[key] = value
+func (e *Envar) Merge(env conf.Configuration) {
+	for key, value := range env.Vars() {
+		e.vars[key] = value
 	}
+	e.Replace()
+}
+
+func (e *Envar) MergeMap(env map[string]string) {
+	for key, value := range env {
+		e.vars[key] = value
+	}
+	e.Replace()
+}
+
+func (e *Envar) Vars() map[string]string {
+	return e.vars
 }
 
 func (e *Envar) String() string {
 	buffer := bytes.Buffer{}
-	for key, value := range e.Vars {
+	for key, value := range e.vars {
 		buffer.WriteString(fmt.Sprintf("%s=%s\n", key, value))
 	}
 	return buffer.String()
 }
 
-func (e *Envar) Debug(processName string) {
-	if core.InDebugMode() {
-		core.DebugLogger.Printf("%s => environment variables:\n", processName)
-		for key, value := range e.Vars {
-			core.DebugLogger.Printf("%s=%s\n", key, value)
-		}
+// Replace any env variable in the internal map with the value
+func (e *Envar) Replace() {
+	for key, value := range e.vars {
+		e.vars[key] = conf.ReplaceVar(value, e)
 	}
 }

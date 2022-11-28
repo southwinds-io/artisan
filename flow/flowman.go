@@ -83,7 +83,6 @@ func (m *Manager) Merge(interactive bool) error {
 			return fmt.Errorf("a build.yaml file is required to fill the flow")
 		}
 		m.populateGit(interactive)
-		m.Flow.AppIcon = m.buildFile.AppIcon
 	}
 	for _, step := range m.Flow.Steps {
 		// performs a healthcheck of the flow to determine if it can survey inputs

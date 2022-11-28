@@ -135,7 +135,7 @@ func (t *TemplMerger) mergeTem(tem []byte, env Envar) ([]byte, error) {
 			return nil, fmt.Errorf("environment variable cannot be PWD, choose a different name\n")
 		}
 		// fetch the env variable value
-		ev := env.Vars[vname]
+		ev := env.Get(vname)
 		// if the variable is not defined in the environment
 		if len(ev) == 0 {
 			// if no default value has been defined

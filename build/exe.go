@@ -15,14 +15,14 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"southwinds.dev/artisan/conf"
 	"southwinds.dev/artisan/core"
-	"southwinds.dev/artisan/merge"
 	"strings"
 	"syscall"
 )
 
 // ExeAsync executes a command and sends output and error streams asynchronously
-func ExeAsync(cmd string, dir string, env *merge.Envar, interactive bool) (string, error) {
+func ExeAsync(cmd string, dir string, env conf.Configuration, interactive bool) (string, error) {
 	if cmd == "" {
 		return "", errors.New("no command provided")
 	}
@@ -46,7 +46,7 @@ func ExeAsync(cmd string, dir string, env *merge.Envar, interactive bool) (strin
 		args = cmdArr[1:]
 	}
 
-	args, _ = core.MergeEnvironmentVars(args, env.Vars, interactive)
+	args, _ = core.MergeEnvironmentVars(args, env, interactive)
 
 	// create the command to execute
 	command := exec.Command(name, args...)
@@ -106,7 +106,7 @@ func ExeAsync(cmd string, dir string, env *merge.Envar, interactive bool) (strin
 }
 
 // Exe executes a command and sends output and error streams to stdout and stderr
-func Exe(cmd string, dir string, env *merge.Envar, interactive bool) (string, error) {
+func Exe(cmd string, dir string, env conf.Configuration, interactive bool) (string, error) {
 	if cmd == "" {
 		return "", errors.New("no command provided")
 	}
@@ -130,7 +130,7 @@ func Exe(cmd string, dir string, env *merge.Envar, interactive bool) (string, er
 		args = cmdArr[1:]
 	}
 
-	args, _ = core.MergeEnvironmentVars(args, env.Vars, interactive)
+	args, _ = core.MergeEnvironmentVars(args, env, interactive)
 
 	// create the command to execute
 	command := exec.Command(name, args...)
@@ -176,7 +176,7 @@ func Exe(cmd string, dir string, env *merge.Envar, interactive bool) (string, er
 	return outbuf.String(), err
 }
 
-func ExeStream(cmd string, dir string, env *merge.Envar, interactive bool) error {
+func ExeStream(cmd string, dir string, env conf.Configuration, interactive bool) error {
 	if cmd == "" {
 		return errors.New("no command provided")
 	}
@@ -200,7 +200,7 @@ func ExeStream(cmd string, dir string, env *merge.Envar, interactive bool) error
 		args = cmdArr[1:]
 	}
 
-	args, _ = core.MergeEnvironmentVars(args, env.Vars, interactive)
+	args, _ = core.MergeEnvironmentVars(args, env, interactive)
 
 	// create the command to execute
 	command := exec.Command(name, args...)

@@ -13,6 +13,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"gopkg.in/yaml.v2"
 	"io"
+	"southwinds.dev/artisan/conf"
 	"southwinds.dev/artisan/core"
 	"southwinds.dev/artisan/merge"
 
@@ -72,7 +73,7 @@ func (i *Input) HasSecret(name string) bool {
 	return false
 }
 
-func (i *Input) SurveyRegistryCreds(flowName, stepName, packageSource, domain string, prompt, defOnly bool, env *merge.Envar) {
+func (i *Input) SurveyRegistryCreds(flowName, stepName, packageSource, domain string, prompt, defOnly bool, env conf.Configuration) {
 	if packageSource != "read" {
 		// check for art_reg_user
 		userName := fmt.Sprintf("%s_%s_OXART_REG_USER", NormInputName(flowName), NormInputName(stepName))
@@ -169,7 +170,7 @@ func (i *Input) SecretExist(name string) bool {
 }
 
 // SurveyInputFromBuildFile extracts the build file Input that is relevant to a function (using its bindings)
-func SurveyInputFromBuildFile(fxName string, buildFile *BuildFile, prompt, defOnly bool, env *merge.Envar, artHome string) *Input {
+func SurveyInputFromBuildFile(fxName string, buildFile *BuildFile, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
 	if buildFile == nil {
 		core.RaiseErr("build file is required")
 	}
@@ -182,7 +183,7 @@ func SurveyInputFromBuildFile(fxName string, buildFile *BuildFile, prompt, defOn
 }
 
 // SurveyInputFromManifest extracts the package manifest Input in an exported function
-func SurveyInputFromManifest(flowName, stepName, packageSource, domain string, fxName string, manifest *Manifest, prompt, defOnly bool, env *merge.Envar, artHome string) *Input {
+func SurveyInputFromManifest(flowName, stepName, packageSource, domain string, fxName string, manifest *Manifest, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
 	var input *Input
 	// get the function in the manifest
 	fx := manifest.Fx(fxName)
@@ -215,7 +216,7 @@ func NormInputName(name string) string {
 	return result
 }
 
-func SurveyInputFromURI(uri string, prompt, defOnly bool, env *merge.Envar, artHome string) *Input {
+func SurveyInputFromURI(uri string, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
 	response, err := core.Get(uri, "", "")
 	core.CheckErr(err, "cannot fetch runtime manifest")
 	body, err := io.ReadAll(response.Body)
@@ -226,7 +227,7 @@ func SurveyInputFromURI(uri string, prompt, defOnly bool, env *merge.Envar, artH
 	return evalInput(buildFile.Input, prompt, defOnly, env, artHome)
 }
 
-func evalInput(input *Input, interactive, defOnly bool, env *merge.Envar, artHome string) *Input {
+func evalInput(input *Input, interactive, defOnly bool, env conf.Configuration, artHome string) *Input {
 	// makes a shallow copy of the input
 	result := *input
 	// collect values from command line interface
@@ -249,15 +250,15 @@ func evalInput(input *Input, interactive, defOnly bool, env *merge.Envar, artHom
 	return &result
 }
 
-func EvalVar(inputVar *Var, prompt bool, env *merge.Envar) {
+func EvalVar(inputVar *Var, prompt bool, env conf.Configuration) {
 	// do not evaluate it if there is already a value
 	if len(inputVar.Value) > 0 {
 		return
 	}
 	// check if there is an env variable
-	varValue, ok := env.Vars[inputVar.Name]
+	varValue := env.Get(inputVar.Name)
 	// if so
-	if ok {
+	if len(varValue) > 0 {
 		// set the var value to the env variable's
 		inputVar.Value = varValue
 	} else if prompt {
@@ -269,15 +270,15 @@ func EvalVar(inputVar *Var, prompt bool, env *merge.Envar) {
 	}
 }
 
-func EvalSecret(inputSecret *Secret, prompt bool, env *merge.Envar) {
+func EvalSecret(inputSecret *Secret, prompt bool, env conf.Configuration) {
 	// do not evaluate it if there is already a value
 	if len(inputSecret.Value) > 0 {
 		return
 	}
 	// check if there is an env variable
-	secretValue, ok := env.Vars[inputSecret.Name]
+	secretValue := env.Get(inputSecret.Name)
 	// if so
-	if ok {
+	if len(secretValue) > 0 {
 		// set the secret value to the env variable's
 		inputSecret.Value = secretValue
 	} else if prompt {
@@ -289,15 +290,15 @@ func EvalSecret(inputSecret *Secret, prompt bool, env *merge.Envar) {
 	}
 }
 
-func EvalFile(inputFile *File, prompt bool, env *merge.Envar, artHome string) {
+func EvalFile(inputFile *File, prompt bool, env conf.Configuration, artHome string) {
 	// do not evaluate it if there is already a value
 	if len(inputFile.Content) > 0 {
 		return
 	}
 	// check if there is an env variable
-	filePath, ok := env.Vars[inputFile.Name]
+	filePath := env.Get(inputFile.Name)
 	// if so
-	if ok {
+	if len(filePath) > 0 {
 		// load the correct key using the provided path
 		loadFileFromPath(inputFile, filePath, artHome)
 	} else if len(inputFile.Path) > 0 {
@@ -343,7 +344,7 @@ func toEnvComments(value string) string {
 }
 
 // extract any Input data from the source that have a binding
-func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bool, env *merge.Envar, artHome string) *Input {
+func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
 	result := &Input{
 		Secret: make([]*Secret, 0),
 		Var:    make([]*Var, 0),

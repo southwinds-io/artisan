@@ -29,7 +29,7 @@ func NewLoader(env Envar) loader {
 		items: []item{},
 		vars:  map[string]string{},
 	}
-	for key, value := range env.Vars {
+	for key, value := range env.vars {
 		// any variable added to a key-value map
 		l.vars[key] = value
 		// now processes grouped variables (i.e. following naming convention GROUP__NAME__IX)

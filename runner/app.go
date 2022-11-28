@@ -197,7 +197,7 @@ func runAutomationPackage(name *core.PackageName, packageFx, packageSource, cred
 					return err
 				}
 				builder := build.NewBuilder(core.ArtDefaultHome)
-				builder.Execute(name, packageFx, credentials, false, "/workspace/source", true, nil, []string{})
+				builder.Execute(name, packageFx, credentials, false, "/workspace/source", true, nil, []string{}, false)
 			case "merge":
 			case "read":
 			}

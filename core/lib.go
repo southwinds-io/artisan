@@ -14,9 +14,8 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"io"
 	"io/fs"
-	"math"
-
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -25,6 +24,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"southwinds.dev/artisan/conf"
 	"strings"
 	"time"
 
@@ -181,7 +181,7 @@ func HandleCtrlC(err error) {
 
 // MergeEnvironmentVars merges environment variables in the arguments
 // returns the merged command list and the updated environment variables map if interactive mode is used
-func MergeEnvironmentVars(args []string, env map[string]string, interactive bool) ([]string, map[string]string) {
+func MergeEnvironmentVars(args []string, env conf.Configuration, interactive bool) ([]string, conf.Configuration) {
 	var result = make([]string, len(args))
 	// the updated environment if interactive mode is used
 	var updatedEnv = env
@@ -196,23 +196,24 @@ func MergeEnvironmentVars(args []string, env map[string]string, interactive bool
 		if matches != nil {
 			for _, match := range matches {
 				// get the name of the environment variable i.e. the name part in "${name}"
-				name := match[2 : len(match)-1]
+				varName := match[2 : len(match)-1]
 				// get the value of the variable
-				value := env[name]
+				value := env.Get(varName)
 				// if not value exists and is not an embedded process variable
-				if len(value) == 0 && !strings.HasPrefix(name, "ARTISAN_") {
+				if len(value) == 0 && !strings.HasPrefix(varName, "ARTISAN_") {
 					// if running in interactive mode
 					if interactive {
 						// prompt for the value
 						prompt := &survey.Input{
-							Message: fmt.Sprintf("%s:", name),
+							Message: fmt.Sprintf("%s:", varName),
 						}
 						HandleCtrlC(survey.AskOne(prompt, &value, survey.WithValidator(survey.Required)))
 						// add the variable to the updated environment map
-						updatedEnv[name] = value
+						updatedEnv.Set(varName, value)
 					} else {
 						// changed behaviour to allow for empty variables, control of required values should be done at input level
 						// RaiseErr("the environment variable '%s' is not defined, are you missing a binding? you can always run the command in interactive mode to manually input its value", name)
+						WarningLogger.Printf("the environment variable '%s' is empty", varName)
 					}
 				}
 				// merges the variable

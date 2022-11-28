@@ -287,7 +287,7 @@ func ImportSpec(opts ImportOptions) (*Spec, error) {
 		}
 		// run the function on the open package
 		core.Debug("executing art run %s import", image)
-		err = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarFromSlice([]string{}), opts.AllowedAuthors)
+		err = builder.Execute(pkg, "import", "", false, "", false, merge.NewEnVarEmpty(), opts.AllowedAuthors, false)
 		if err != nil {
 			return spec, fmt.Errorf("cannot import image %s: %s", image, err)
 		}
