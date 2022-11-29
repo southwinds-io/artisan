@@ -195,8 +195,14 @@ func (f *Flow) GetInputDefinition(b *data.BuildFile, env *merge.Envar) (*data.In
 			if manif == nil {
 				core.RaiseErr("manifest for package '%s' not found", name)
 			}
-			i := data.SurveyInputFromManifest(f.Name, step.Name, step.PackageSource, name.Domain, step.Function, manif, false, true, env, f.artHome)
-			i.SurveyRegistryCreds(f.Name, step.Name, step.PackageSource, name.Domain, false, true, env)
+			i, err := data.SurveyInputFromManifest(f.Name, step.Name, step.PackageSource, name.Domain, step.Function, manif, false, true, env, f.artHome)
+			if err != nil {
+				return nil, err
+			}
+			err = i.SurveyRegistryCreds(f.Name, step.Name, step.PackageSource, name.Domain, false, true, env)
+			if err != nil {
+				return nil, err
+			}
 			result.Merge(i)
 		} else {
 			flowHealthCheck(f, step)

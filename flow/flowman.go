@@ -92,7 +92,11 @@ func (m *Manager) Merge(interactive bool) error {
 			core.CheckErr(err, "invalid step %s package name %s", step.Name, step.Package)
 			// get the package manifest
 			manifest := local.GetManifest(name)
-			step.Input = data.SurveyInputFromManifest(m.Flow.Name, step.Name, step.PackageSource, name.Domain, step.Function, manifest, interactive, false, m.env, m.artHome)
+			input, err := data.SurveyInputFromManifest(m.Flow.Name, step.Name, step.PackageSource, name.Domain, step.Function, manifest, interactive, false, m.env, m.artHome)
+			if err != nil {
+				return err
+			}
+			step.Input = input
 		} else if step.surveyBuildfile(m.Flow.RequiresGitSource()) {
 			// add exported inputs to the step
 			i, err := data.SurveyInputFromBuildFile(step.Function, m.buildFile, interactive, false, m.env, m.artHome)

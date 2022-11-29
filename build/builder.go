@@ -368,6 +368,7 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 	if err != nil {
 		return err
 	}
+	core.Debug("function '%s' input survey complete\n", function)
 	// merge the collected input with the current environment
 	env.Merge(i.Env())
 	// gets the function to run
@@ -769,6 +770,7 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 	} else {
 		return fmt.Errorf("the function '%s' is not defined in the package manifest, check that it has been exported in the build profile\n", function)
 	}
+	core.Debug("builder exe '%s'=>'%s' complete\n", name.FullyQualifiedNameTag(), function)
 	return nil
 }
 
@@ -778,7 +780,10 @@ func (b *Builder) SetBProc(p BuildHandler) {
 
 func sProcessor(b *Builder, s *data.Seal, openP, runP, signP string) error {
 	// calculates the package digest used to check its integrity
-	digest := s.DSha256(b.WorkDirPackageFilename())
+	digest, err := s.DSha256(b.WorkDirPackageFilename())
+	if err != nil {
+		return err
+	}
 	core.Debug("the package digest is '%s'\n", digest)
 	// writes the digest to the seal
 	s.Digest = digest

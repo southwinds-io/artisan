@@ -41,27 +41,33 @@ func (seal *Seal) NoAuthority() bool {
 }
 
 // DSha256 calculates the package SHA-256 digest by taking the combined checksum of the Seal information and the compressed file
-func (seal *Seal) DSha256(path string) string {
+func (seal *Seal) DSha256(path string) (string, error) {
 	// precondition: the manifest is required
 	if seal.Manifest == nil {
-		core.RaiseErr("seal has no manifest, cannot create checksum")
+		return "", fmt.Errorf("seal has no manifest, cannot create checksum")
 	}
 	// read the compressed file
 	file, err := os.ReadFile(path)
-	core.CheckErr(err, "cannot open seal file")
+	if err != nil {
+		return "", fmt.Errorf("cannot open seal file: %s", err)
+	}
 	// serialise the seal info to json
 	info := core.ToJsonBytes(seal.Manifest)
 	core.Debug("manifest before checksum:\n>> start on next line\n%s\n>> ended on previous line", string(info))
 	hash := sha256.New()
 	written, err := hash.Write(file)
-	core.CheckErr(err, "cannot write package file to hash")
+	if err != nil {
+		return "", fmt.Errorf("cannot write package file to hash: %s", err)
+	}
 	core.Debug("%d bytes from package written to hash", written)
 	written, err = hash.Write(info)
-	core.CheckErr(err, "cannot write manifest to hash")
+	if err != nil {
+		return "", fmt.Errorf("cannot write manifest to hash: %s", err)
+	}
 	core.Debug("%d bytes from manifest written to hash", written)
 	checksum := hash.Sum(nil)
 	core.Debug("seal calculated base64 encoded checksum:\n>> start on next line\n%s\n>> ended on previous line", base64.StdEncoding.EncodeToString(checksum))
-	return fmt.Sprintf("sha256:%s", base64.StdEncoding.EncodeToString(checksum))
+	return fmt.Sprintf("sha256:%s", base64.StdEncoding.EncodeToString(checksum)), nil
 }
 
 func (seal *Seal) ZipFile(registryRoot string) string {
@@ -89,7 +95,10 @@ func (seal *Seal) PackageId() (string, error) {
 // path: the path to the package zip file to validate
 func (seal *Seal) Valid(path string) (valid bool, err error) {
 	// calculates the digest using the zip file
-	digest := seal.DSha256(path)
+	digest, err := seal.DSha256(path)
+	if err != nil {
+		return false, err
+	}
 	// compare to the digest stored in the seal
 	if seal.Digest == digest {
 		return true, nil

@@ -73,7 +73,7 @@ func (i *Input) HasSecret(name string) bool {
 	return false
 }
 
-func (i *Input) SurveyRegistryCreds(flowName, stepName, packageSource, domain string, prompt, defOnly bool, env conf.Configuration) {
+func (i *Input) SurveyRegistryCreds(flowName, stepName, packageSource, domain string, prompt, defOnly bool, env conf.Configuration) error {
 	if packageSource != "read" {
 		// check for art_reg_user
 		userName := fmt.Sprintf("%s_%s_OXART_REG_USER", NormInputName(flowName), NormInputName(stepName))
@@ -83,7 +83,9 @@ func (i *Input) SurveyRegistryCreds(flowName, stepName, packageSource, domain st
 				Description: fmt.Sprintf("the username to authenticate with the registry at %s'", domain),
 			}
 			if !defOnly {
-				EvalSecret(userSecret, prompt, env)
+				if err := EvalSecret(userSecret, prompt, env); err != nil {
+					return err
+				}
 			}
 			i.Secret = append(i.Secret, userSecret)
 		}
@@ -95,11 +97,14 @@ func (i *Input) SurveyRegistryCreds(flowName, stepName, packageSource, domain st
 				Description: fmt.Sprintf("the password to authenticate with the registry at '%s'", domain),
 			}
 			if !defOnly {
-				EvalSecret(pwdSecret, prompt, env)
+				if err := EvalSecret(pwdSecret, prompt, env); err != nil {
+					return err
+				}
 			}
 			i.Secret = append(i.Secret, pwdSecret)
 		}
 	}
+	return nil
 }
 
 func (i *Input) Env() *merge.Envar {
@@ -183,7 +188,7 @@ func SurveyInputFromBuildFile(fxName string, buildFile *BuildFile, prompt, defOn
 }
 
 // SurveyInputFromManifest extracts the package manifest Input in an exported function
-func SurveyInputFromManifest(flowName, stepName, packageSource, domain string, fxName string, manifest *Manifest, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
+func SurveyInputFromManifest(flowName, stepName, packageSource, domain string, fxName string, manifest *Manifest, prompt, defOnly bool, env conf.Configuration, artHome string) (*Input, error) {
 	var input *Input
 	// get the function in the manifest
 	fx := manifest.Fx(fxName)
@@ -199,13 +204,16 @@ func SurveyInputFromManifest(flowName, stepName, packageSource, domain string, f
 		}
 	} else {
 		// requires a function to exist
-		core.RaiseErr("function '%s' does not exist in or has not been exported", fxName)
+		return nil, fmt.Errorf("function '%s' does not exist in or has not been exported", fxName)
 	}
 	// first evaluates the existing inputs
-	input = evalInput(input, prompt, defOnly, env, artHome)
+	input, err := evalInput(input, prompt, defOnly, env, artHome)
+	if err != nil {
+		return nil, err
+	}
 	// then add registry credential inputs
-	input.SurveyRegistryCreds(flowName, stepName, packageSource, domain, prompt, defOnly, env)
-	return input
+	err = input.SurveyRegistryCreds(flowName, stepName, packageSource, domain, prompt, defOnly, env)
+	return input, err
 }
 
 // NormInputName ensure the passed in name is formatted as a valid environment variable name
@@ -216,9 +224,11 @@ func NormInputName(name string) string {
 	return result
 }
 
-func SurveyInputFromURI(uri string, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
+func SurveyInputFromURI(uri string, prompt, defOnly bool, env conf.Configuration, artHome string) (*Input, error) {
 	response, err := core.Get(uri, "", "")
-	core.CheckErr(err, "cannot fetch runtime manifest")
+	if err != nil {
+		return nil, fmt.Errorf("cannot fetch runtime manifest")
+	}
 	body, err := io.ReadAll(response.Body)
 	core.CheckErr(err, "cannot read runtime manifest http response")
 	// need a wrapper object for the input for the unmarshaller to work so using buildfile
@@ -227,27 +237,33 @@ func SurveyInputFromURI(uri string, prompt, defOnly bool, env conf.Configuration
 	return evalInput(buildFile.Input, prompt, defOnly, env, artHome)
 }
 
-func evalInput(input *Input, interactive, defOnly bool, env conf.Configuration, artHome string) *Input {
+func evalInput(input *Input, interactive, defOnly bool, env conf.Configuration, artHome string) (*Input, error) {
 	// makes a shallow copy of the input
 	result := *input
 	// collect values from command line interface
 	for _, v := range result.Var {
 		if !defOnly {
-			EvalVar(v, interactive, env)
+			if err := EvalVar(v, interactive, env); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for _, secret := range result.Secret {
 		if !defOnly {
-			EvalSecret(secret, interactive, env)
+			if err := EvalSecret(secret, interactive, env); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for _, file := range result.File {
 		if !defOnly {
-			EvalFile(file, interactive, env, artHome)
+			if err := EvalFile(file, interactive, env, artHome); err != nil {
+				return nil, err
+			}
 		}
 	}
 	// return pointer to new object
-	return &result
+	return &result, nil
 }
 
 func EvalVar(inputVar *Var, prompt bool, env conf.Configuration) error {

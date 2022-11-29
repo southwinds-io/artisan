@@ -157,15 +157,19 @@ func (e *Envar) Vars() map[string]string {
 
 func (e *Envar) String() string {
 	buffer := bytes.Buffer{}
-	for key, value := range e.vars {
-		buffer.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+	if e.vars != nil {
+		for key, value := range e.vars {
+			buffer.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+		}
 	}
 	return buffer.String()
 }
 
 // Replace any env variable in the internal map with the value
 func (e *Envar) Replace() {
-	for key, value := range e.vars {
-		e.vars[key] = conf.ReplaceVar(value, e)
+	if e.vars != nil {
+		for key, value := range e.vars {
+			e.vars[key] = conf.ReplaceVar(value, e)
+		}
 	}
 }

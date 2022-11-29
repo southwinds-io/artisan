@@ -108,7 +108,10 @@ func (r *Runner) ExeC(packageName, fxName, credentials, network string, interact
 		}
 		runtime = core.QualifyRuntime(runtime)
 		// interactively survey for required input via CLI
-		input := data.SurveyInputFromManifest(name.Group, name.Name, "", name.Domain, fxName, m, interactive, false, env, r.artHome)
+		input, err := data.SurveyInputFromManifest(name.Group, name.Name, "", name.Domain, fxName, m, interactive, false, env, r.artHome)
+		if err != nil {
+			return err
+		}
 		// merge the collected input with the current environment without adding the PGP keys (they must be present locally)
 		env.Merge(input.Env())
 		// get registry credentials
@@ -116,7 +119,7 @@ func (r *Runner) ExeC(packageName, fxName, credentials, network string, interact
 		// create a random container name
 		containerName := fmt.Sprintf("art-exec-%s", core.RandomString(8))
 		// launch a container with a bind mount to the artisan registry only
-		err := runPackageFx(runtime, packageName, fxName, containerName, uname, pwd, network, env, r.artHome)
+		err = runPackageFx(runtime, packageName, fxName, containerName, uname, pwd, network, env, r.artHome)
 		if err != nil {
 			removeContainer(containerName)
 			return err

@@ -197,6 +197,7 @@ func round(val float64, roundOn float64, places int) (newVal float64) {
 
 // executes a command and sends output and error streams to stdout and stderr
 func execute(cmd string, dir string, env conf.Configuration, interactive bool) (err error) {
+	core.Debug("executing command: '%s'\n", cmd)
 	// executes the command
 	_, err = ExeAsync(cmd, dir, env, interactive)
 	// if there is an error return it
