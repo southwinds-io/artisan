@@ -95,7 +95,11 @@ func (m *Manager) Merge(interactive bool) error {
 			step.Input = data.SurveyInputFromManifest(m.Flow.Name, step.Name, step.PackageSource, name.Domain, step.Function, manifest, interactive, false, m.env, m.artHome)
 		} else if step.surveyBuildfile(m.Flow.RequiresGitSource()) {
 			// add exported inputs to the step
-			step.Input = data.SurveyInputFromBuildFile(step.Function, m.buildFile, interactive, false, m.env, m.artHome)
+			i, err := data.SurveyInputFromBuildFile(step.Function, m.buildFile, interactive, false, m.env, m.artHome)
+			if err != nil {
+				return err
+			}
+			step.Input = i
 		}
 	}
 	err := m.Flow.IsValid()

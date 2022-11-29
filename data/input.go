@@ -170,14 +170,14 @@ func (i *Input) SecretExist(name string) bool {
 }
 
 // SurveyInputFromBuildFile extracts the build file Input that is relevant to a function (using its bindings)
-func SurveyInputFromBuildFile(fxName string, buildFile *BuildFile, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
+func SurveyInputFromBuildFile(fxName string, buildFile *BuildFile, prompt, defOnly bool, env conf.Configuration, artHome string) (*Input, error) {
 	if buildFile == nil {
 		core.RaiseErr("build file is required")
 	}
 	// get the build file function to inspect
 	fx := buildFile.Fx(fxName)
 	if fx == nil {
-		core.RaiseErr("function '%s' cannot be found in build file", fxName)
+		return nil, fmt.Errorf("function '%s' cannot be found in build file", fxName)
 	}
 	return getBoundInput(fx.Input, buildFile.Input, prompt, defOnly, env, artHome)
 }
@@ -250,10 +250,10 @@ func evalInput(input *Input, interactive, defOnly bool, env conf.Configuration, 
 	return &result
 }
 
-func EvalVar(inputVar *Var, prompt bool, env conf.Configuration) {
+func EvalVar(inputVar *Var, prompt bool, env conf.Configuration) error {
 	// do not evaluate it if there is already a value
 	if len(inputVar.Value) > 0 {
-		return
+		return nil
 	}
 	// check if there is an env variable
 	varValue := env.Get(inputVar.Name)
@@ -266,14 +266,15 @@ func EvalVar(inputVar *Var, prompt bool, env conf.Configuration) {
 		surveyVar(inputVar)
 	} else {
 		// otherwise error
-		core.RaiseErr("%s is required", inputVar.Name)
+		return fmt.Errorf("%s is required", inputVar.Name)
 	}
+	return nil
 }
 
-func EvalSecret(inputSecret *Secret, prompt bool, env conf.Configuration) {
+func EvalSecret(inputSecret *Secret, prompt bool, env conf.Configuration) error {
 	// do not evaluate it if there is already a value
 	if len(inputSecret.Value) > 0 {
-		return
+		return nil
 	}
 	// check if there is an env variable
 	secretValue := env.Get(inputSecret.Name)
@@ -286,14 +287,15 @@ func EvalSecret(inputSecret *Secret, prompt bool, env conf.Configuration) {
 		surveySecret(inputSecret)
 	} else {
 		// otherwise error
-		core.RaiseErr("%s is required", inputSecret.Name)
+		return fmt.Errorf("%s is required", inputSecret.Name)
 	}
+	return nil
 }
 
-func EvalFile(inputFile *File, prompt bool, env conf.Configuration, artHome string) {
+func EvalFile(inputFile *File, prompt bool, env conf.Configuration, artHome string) error {
 	// do not evaluate it if there is already a value
 	if len(inputFile.Content) > 0 {
-		return
+		return nil
 	}
 	// check if there is an env variable
 	filePath := env.Get(inputFile.Name)
@@ -307,8 +309,9 @@ func EvalFile(inputFile *File, prompt bool, env conf.Configuration, artHome stri
 	} else if prompt {
 		surveyFile(inputFile, artHome)
 	} else {
-		core.RaiseErr("%s is required", inputFile.Name)
+		return fmt.Errorf("%s is required", inputFile.Name)
 	}
+	return nil
 }
 
 func (i *Input) ToEnvFile() []byte {
@@ -344,7 +347,7 @@ func toEnvComments(value string) string {
 }
 
 // extract any Input data from the source that have a binding
-func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bool, env conf.Configuration, artHome string) *Input {
+func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bool, env conf.Configuration, artHome string) (*Input, error) {
 	result := &Input{
 		Secret: make([]*Secret, 0),
 		Var:    make([]*Var, 0),
@@ -352,7 +355,7 @@ func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bo
 	}
 	// if no bindings then return an empty Input
 	if fxInput == nil {
-		return result
+		return result, nil
 	}
 	// collects exported vars
 	for _, varBinding := range fxInput.Var {
@@ -361,7 +364,9 @@ func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bo
 				result.Var = append(result.Var, variable)
 				// if not definition only it should evaluate the variable
 				if !defOnly {
-					EvalVar(variable, prompt, env)
+					if err := EvalVar(variable, prompt, env); err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
@@ -373,7 +378,9 @@ func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bo
 				result.Secret = append(result.Secret, secret)
 				// if not definition only it should evaluate the secret
 				if !defOnly {
-					EvalSecret(secret, prompt, env)
+					if err := EvalSecret(secret, prompt, env); err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
@@ -384,12 +391,14 @@ func getBoundInput(fxInput *InputBinding, sourceInput *Input, prompt, defOnly bo
 				result.File = append(result.File, file)
 				// if not definition only it should evaluate the file
 				if !defOnly {
-					EvalFile(file, prompt, env, artHome)
+					if err := EvalFile(file, prompt, env, artHome); err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
 	}
-	return result
+	return result, nil
 }
 
 func surveyVar(variable *Var) {
@@ -466,19 +475,17 @@ func surveySecret(secret *Secret) {
 	core.HandleCtrlC(survey.AskOne(prompt, &secret.Value, askOpts))
 }
 
-func surveyFile(file *File, artHome string) {
+func surveyFile(file *File, artHome string) error {
 	// check if an env var has been set
 	envVal := os.Getenv(file.Name)
 	// if so, skip survey
 	if len(envVal) > 0 {
 		// load the file using the env var path value specified
-		loadFileFromPath(file, envVal, artHome)
-		return
+		return loadFileFromPath(file, envVal, artHome)
 	}
 	if len(file.Path) > 0 {
 		// load the file using the path value specified in the manifest / buildfile
-		loadFileFromPath(file, file.Path, artHome)
-		return
+		return loadFileFromPath(file, file.Path, artHome)
 	}
 	desc := ""
 	// if a description is available use it
@@ -497,16 +504,20 @@ func surveyFile(file *File, artHome string) {
 	// survey the key path
 	core.HandleCtrlC(survey.AskOne(prompt, &filePath, nil))
 	// load the keys
-	loadFileFromPath(file, filePath, artHome)
+	return loadFileFromPath(file, filePath, artHome)
 }
 
 // load the file content in the file object using the passed in file path
-func loadFileFromPath(file *File, filePath, artHome string) {
+func loadFileFromPath(file *File, filePath, artHome string) error {
 	var (
 		contentBytes []byte
 		err          error
+		path         = path.Join(core.FilesPath(artHome), filePath)
 	)
-	contentBytes, err = os.ReadFile(path.Join(core.FilesPath(artHome), filePath))
-	core.CheckErr(err, "cannot load file from registry")
+	contentBytes, err = os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("cannot load file '%s' from registry", path)
+	}
 	file.Content = string(contentBytes)
+	return nil
 }

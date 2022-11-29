@@ -364,7 +364,10 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 	core.Debug(fmt.Sprintf("executing function: %s\n", function))
 	core.Debug(env.String())
 	// if inputs are defined for the function then survey for data
-	i := data.SurveyInputFromBuildFile(function, b.buildFile, interactive, false, env, b.artHome)
+	i, err := data.SurveyInputFromBuildFile(function, b.buildFile, interactive, false, env, b.artHome)
+	if err != nil {
+		return err
+	}
 	// merge the collected input with the current environment
 	env.Merge(i.Env())
 	// gets the function to run
@@ -639,11 +642,15 @@ func (b *Builder) createSeal(profile *data.Profile, openP, runP, signP string) (
 		// if the function is exported
 		if fx.Export != nil && *fx.Export {
 			core.Debug("adding inputs to the manifest for exported function '%s'\n", fx.Name)
+			input, err := data.SurveyInputFromBuildFile(fx.Name, buildFile, false, true, merge.NewEnVarFromSlice(os.Environ()), b.artHome)
+			if err != nil {
+				return nil, err
+			}
 			// then grab the required inputs
 			f := &data.FxInfo{
 				Name:        fx.Name,
 				Description: fx.Description,
-				Input:       data.SurveyInputFromBuildFile(fx.Name, buildFile, false, true, merge.NewEnVarFromSlice(os.Environ()), b.artHome),
+				Input:       input,
 				Runtime:     fx.Runtime,
 				Network:     fx.Network,
 			}
@@ -728,7 +735,7 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 	m := seal.Manifest
 	// stop execution if the package was built in an OS different from the executing OS
 	if runtime.GOOS == "windows" && m.OS != "windows" {
-		core.RaiseErr("cannot run package, as it was built in '%s' OS and it is trying to execute in '%s' OS\n"+
+		return fmt.Errorf("cannot run package, as it was built in '%s' OS and it is trying to execute in '%s' OS\n"+
 			"ensure the package is built under the executing OS\n", m.OS, runtime.GOOS)
 	}
 	// check the function is exported

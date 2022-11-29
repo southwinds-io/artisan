@@ -66,7 +66,8 @@ func (c *EnvFlowCmd) Run(cmd *cobra.Command, args []string) {
 		b, err = data.LoadBuildFile(path.Join(c.buildFilePath, "build.yaml"))
 	}
 	// discover the input required by the flow / build file
-	input := f.GetInputDefinition(b, merge.NewEnVarFromSlice([]string{}))
+	input, err := f.GetInputDefinition(b, merge.NewEnVarFromSlice([]string{}))
+	core.CheckErr(err, "cannot get inputs")
 	var output []byte
 	switch strings.ToLower(c.out) {
 	// if the requested format is env
@@ -96,7 +97,6 @@ func (c *EnvFlowCmd) Run(cmd *cobra.Command, args []string) {
 		default:
 			filename = ".env"
 		}
-		err := os.WriteFile(path.Join(dir, filename), output, os.ModePerm)
-		core.CheckErr(err, "cannot write '%s' file", filename)
+		core.CheckErr(os.WriteFile(path.Join(dir, filename), output, os.ModePerm), "cannot write '%s' file", filename)
 	}
 }

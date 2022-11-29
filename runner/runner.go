@@ -62,12 +62,15 @@ func (r *Runner) RunC(fxName string, interactive bool, env *merge.Envar, network
 	// generate a unique name for the running container
 	containerName := fmt.Sprintf("art-runc-%s-%s", core.Encode(fxName), core.RandomString(8))
 	// if insputs are defined for the function then survey for data
-	i := data.SurveyInputFromBuildFile(fxName, r.buildFile, true, false, env, r.artHome)
+	i, err := data.SurveyInputFromBuildFile(fxName, r.buildFile, true, false, env, r.artHome)
+	if err != nil {
+		return err
+	}
 	// merge the collected input with the current environment
 	env.Merge(i.Env())
 	core.Debug(fmt.Sprintf("env vars passed to container:\n%s\n", env.String()))
 	// launch a container with a bind mount to the path where the build.yaml is located
-	err := runBuildFileFx(runtime, fxName, r.path, containerName, network, env, r.artHome)
+	err = runBuildFileFx(runtime, fxName, r.path, containerName, network, env, r.artHome)
 	if err != nil {
 		removeContainer(containerName)
 		return err

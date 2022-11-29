@@ -1272,29 +1272,6 @@ func getPackageName(repoIx LocalRegistry, seal *data.Seal) (*core.PackageName, e
 		"the seal checksum does not match any entry held in the repository index")
 }
 
-// works out the destination folder and prefix for the key
-func (r *LocalRegistry) keyDestinationFolder(repoName string, repoGroup string, artHome string) (destPath string, prefix string) {
-	if len(repoName) > 0 {
-		// use the repo name location
-		destPath = path.Join(core.RegistryPath(artHome), "keys", repoGroup, repoName)
-		prefix = fmt.Sprintf("%s_%s", repoGroup, repoName)
-	} else if len(repoGroup) > 0 {
-		// use the repo group location
-		destPath = path.Join(core.RegistryPath(artHome), "keys", repoGroup)
-		prefix = repoGroup
-	} else {
-		// use the registry root location
-		destPath = path.Join(core.RegistryPath(artHome), "keys")
-		prefix = "root"
-	}
-	_, err := os.Stat(destPath)
-	if os.IsNotExist(err) {
-		err = os.MkdirAll(destPath, os.ModePerm)
-		core.CheckErr(err, "cannot create private key destination '%s'", destPath)
-	}
-	return destPath, prefix
-}
-
 // remove the files associated with a Package
 func (r *LocalRegistry) removeFiles(pack *Package, artHome string) error {
 	// remove the zip file

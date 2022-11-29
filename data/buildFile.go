@@ -146,7 +146,9 @@ func (p *Profile) Survey(bf *BuildFile) conf.Configuration {
 func LoadBuildFile(path string) (*BuildFile, error) {
 	if !filepath.IsAbs(path) {
 		abs, err := filepath.Abs(path)
-		core.CheckErr(err, "cannot get absolute path for %s", path)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get absolute path for %s", path)
+		}
 		path = abs
 	}
 	bytes, err := os.ReadFile(path)

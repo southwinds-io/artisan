@@ -157,7 +157,7 @@ func (f *Flow) RequiresFile() bool {
 
 // GetInputDefinition retrieve all input data required by the flow without values
 // interactive mode is off - gets definition only
-func (f *Flow) GetInputDefinition(b *data.BuildFile, env *merge.Envar) *data.Input {
+func (f *Flow) GetInputDefinition(b *data.BuildFile, env *merge.Envar) (*data.Input, error) {
 	result := &data.Input{
 		Secret: make([]*data.Secret, 0),
 		Var:    make([]*data.Var, 0),
@@ -172,7 +172,10 @@ func (f *Flow) GetInputDefinition(b *data.BuildFile, env *merge.Envar) *data.Inp
 				core.RaiseErr("flow '%s' requires a build.yaml", f.Name)
 			}
 			// surveys the build.yaml for variables
-			i := data.SurveyInputFromBuildFile(step.Function, b, false, true, env, f.artHome)
+			i, err := data.SurveyInputFromBuildFile(step.Function, b, false, true, env, f.artHome)
+			if err != nil {
+				return nil, err
+			}
 			if i == nil {
 				i = &data.Input{
 					Secret: make([]*data.Secret, 0),
@@ -214,7 +217,7 @@ func (f *Flow) GetInputDefinition(b *data.BuildFile, env *merge.Envar) *data.Inp
 			}
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (f *Flow) JsonBytes() ([]byte, error) {
