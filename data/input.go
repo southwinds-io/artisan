@@ -177,7 +177,7 @@ func (i *Input) SecretExist(name string) bool {
 // SurveyInputFromBuildFile extracts the build file Input that is relevant to a function (using its bindings)
 func SurveyInputFromBuildFile(fxName string, buildFile *BuildFile, prompt, defOnly bool, env conf.Configuration, artHome string) (*Input, error) {
 	if buildFile == nil {
-		core.RaiseErr("build file is required")
+		return nil, fmt.Errorf("build file is required")
 	}
 	// get the build file function to inspect
 	fx := buildFile.Fx(fxName)
