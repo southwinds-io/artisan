@@ -534,13 +534,16 @@ func (b *Builder) evalSubshell(vars map[string]string, execDir string, env conf.
 		// update the value with merged expression
 		vars[k] = s[0]
 		if ok, expr, shell := core.HasShell(v); ok {
-			usesArtisan := strings.Contains(shell, "art ")
+			core.Debug("subshell evaluation started: '%s'\n", shell)
+			usesArtisan := strings.HasPrefix(shell, "art ")
+			core.Debug("=> subshell uses artisan command: %t\n", usesArtisan)
 			out, err := Exe(shell, execDir, env, interactive)
 			if err != nil {
 				return nil, fmt.Errorf("cannot execute subshell command '%s': %s", v, err)
 			}
 			// ensure the subshell output does not end with newline
 			out = core.TrimNewline(out)
+			core.Debug("=> shell eval output: '%s'\n", out)
 			// if subshell uses art command then check for safe output
 			if usesArtisan && len(out) > 0 {
 				core.Debug("=> found wrapped value in subshell output\n")
