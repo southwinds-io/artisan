@@ -64,6 +64,7 @@ func InitialiseUtilCommand(artHome string) *UtilCmd {
 	langCmd := InitialiseLangCommand(artHome)
 	gitSyncCmd := NewGitSyncCmd()
 	serveCmd := NewServeCmd()
+	replaceCmd := NewUtilReplaceCmd()
 	utilCmd.Cmd.AddCommand(
 		utilPwdCmd.Cmd,
 		utilExtractCmd.Cmd,
@@ -75,6 +76,7 @@ func InitialiseUtilCommand(artHome string) *UtilCmd {
 		langCmd.Cmd,
 		gitSyncCmd.Cmd,
 		serveCmd.Cmd,
+		replaceCmd.Cmd,
 	)
 	return utilCmd
 }
