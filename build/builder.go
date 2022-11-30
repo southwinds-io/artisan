@@ -402,33 +402,10 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 		// add function level vars
 		buildEnv = buildEnv.Append(fx.GetEnv())
 		// if the statement has a function call
-		if ok, expr, shell := core.HasShell(cmd); ok {
-			core.Debug("subshell evaluation started: '%s'\n", shell)
-			usesArtisan := strings.HasPrefix(shell, "art ")
-			core.Debug("=> subshell uses artisan command: %t\n", usesArtisan)
-			out, err := Exe(shell, path, buildEnv, interactive)
+		if ok, _, _ := core.HasShell(cmd); ok {
+			cmd, err = EvalShell(cmd, buildEnv)
 			if err != nil {
-				return fmt.Errorf("cannot execute subshell command: %s", cmd)
-			}
-			// ensure the subshell output does not end with newline
-			out = core.TrimNewline(out)
-			core.Debug("=> shell eval output: '%s'\n", out)
-			// if subshell uses art command then check for safe output
-			if usesArtisan && len(out) > 0 {
-				core.Debug("=> found wrapped value in subshell output\n")
-				r, _ := regexp.Compile("{{.*}}")
-				if matched := r.MatchString(out); matched {
-					out = r.FindString(out)
-					// merges the output of the subshell in the original variable
-					cmd = strings.Replace(cmd, expr, out[2:len(out)-2], 1)
-					core.Debug("=> unwrapped value is: '%s'\n", out[2:len(out)-2])
-					core.Debug("=> replaced cmd is: '%s'\n", cmd)
-				} else {
-					return fmt.Errorf("non-empty returned value of subshell expression '%s', must be enclosed by double curly braces '{{...}}' markers to prevent potential corruption due to debug statements", shell)
-				}
-			} else {
-				// merges the output of the subshell in the original command
-				cmd = strings.Replace(cmd, expr, out, -1)
+				return fmt.Errorf("cannot evaluate subshell expression in '%s': %s", cmd, err)
 			}
 			// execute the statement
 			err = execute(cmd, path, buildEnv, interactive)

@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"southwinds.dev/artisan/conf"
 	"southwinds.dev/artisan/core"
@@ -239,4 +240,38 @@ func isExported(m *data.Manifest, fx string) bool {
 		}
 	}
 	return false
+}
+
+func EvalShell(statement string, env conf.Configuration) (string, error) {
+	if ok, expr, shell := core.HasShell(statement); ok {
+		core.Debug("subshell evaluation started: '%s'\n", shell)
+		usesArtisan := strings.HasPrefix(shell, "art ")
+		core.Debug("=> subshell uses artisan command: %t\n", usesArtisan)
+		out, err := Exe(shell, "", env, false)
+		if err != nil {
+			return "", fmt.Errorf("cannot execute subshell command: %s", statement)
+		}
+		// ensure the subshell output does not end with newline
+		out = core.TrimNewline(out)
+		core.Debug("=> shell eval output: '%s'\n", out)
+		// if subshell uses art command then check for safe output
+		if usesArtisan && len(out) > 0 {
+			core.Debug("=> found wrapped value in subshell output\n")
+			r, _ := regexp.Compile("{{.*}}")
+			if matched := r.MatchString(out); matched {
+				out = r.FindString(out)
+				// merges the output of the subshell in the original variable
+				statement = strings.Replace(statement, expr, out[2:len(out)-2], 1)
+				core.Debug("=> unwrapped value is: '%s'\n", out[2:len(out)-2])
+				core.Debug("=> replaced cmd is: '%s'\n", statement)
+			} else {
+				return "", fmt.Errorf("non-empty returned value of subshell expression '%s', must be enclosed by double curly braces '{{...}}' markers to prevent potential corruption due to debug statements", shell)
+			}
+		} else {
+			// merges the output of the subshell in the original command
+			statement = strings.Replace(statement, expr, out, -1)
+		}
+	}
+	// if it does not have a subshell returns the original statement
+	return statement, nil
 }
