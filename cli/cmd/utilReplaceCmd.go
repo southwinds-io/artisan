@@ -31,6 +31,8 @@ func NewUtilReplaceCmd() *UtilReplaceCmd {
 			Short: "replaces a set of characters found by regex with replacement string",
 			Long:  `replaces a set of characters found by regex with replacement string`,
 			Args:  cobra.ExactArgs(1),
+			Example: `$ art u replace file.txt -r "image:(?:.*)$" "replaced-string"
+`,
 		},
 	}
 	c.Cmd.Flags().StringVarP(&c.regex, "regex", "r", "", `-r "image:(?:.*)$"`)
