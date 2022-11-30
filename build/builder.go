@@ -531,6 +531,7 @@ func (b *Builder) evalSubshell(vars map[string]string, execDir string, env conf.
 		vars[k] = s[0]
 		if ok, expr, shell := core.HasShell(v); ok {
 			core.Debug("subshell evaluation started: '%s'\n", shell)
+			shell = strings.Trim(shell, " ")
 			usesArtisan := strings.HasPrefix(shell, "art ")
 			core.Debug("=> subshell uses artisan command: %t\n", usesArtisan)
 			out, err := Exe(shell, execDir, env, interactive)
@@ -549,7 +550,6 @@ func (b *Builder) evalSubshell(vars map[string]string, execDir string, env conf.
 					// merges the output of the subshell in the original variable
 					vars[k] = strings.Replace(v, expr, out[2:len(out)-2], 1)
 					core.Debug("=> unwrapped value is: '%s'\n", out[2:len(out)-2])
-					core.Debug("=> replaced output is: '%s'\n", vars[k])
 				} else {
 					return nil, fmt.Errorf("non-empty returned value of subshell expression '%s', must be enclosed by double curly braces '{{...}}' markers to prevent potential corruption due to debug statements", shell)
 				}
