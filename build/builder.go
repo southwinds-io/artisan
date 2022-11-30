@@ -543,11 +543,14 @@ func (b *Builder) evalSubshell(vars map[string]string, execDir string, env conf.
 			out = core.TrimNewline(out)
 			// if subshell uses art command then check for safe output
 			if usesArtisan && len(out) > 0 {
+				core.Debug("=> found wrapped value in subshell output\n")
 				r, _ := regexp.Compile("{{.*}}")
 				if matched := r.MatchString(shell); matched {
 					out = r.FindString(shell)
 					// merges the output of the subshell in the original variable
-					vars[k] = strings.Replace(v, expr, out[2:len(s)-2], -1)
+					vars[k] = strings.Replace(v, expr, out[2:len(s)-2], 1)
+					core.Debug("=> unwrapped value is: '%s'\n", out[2:len(s)-2])
+					core.Debug("=> replaced output is: '%s'\n", vars[k])
 				} else {
 					return nil, fmt.Errorf("non-empty returned value of subshell expression '%s', must be enclosed by double curly braces '{{...}}' markers to prevent potential corruption due to debug statements", shell)
 				}

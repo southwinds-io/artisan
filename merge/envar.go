@@ -59,6 +59,11 @@ func NewEnVarFromMap(v map[string]string) *Envar {
 }
 
 func NewEnVarFromFile(envFile string) (*Envar, error) {
+	if len(envFile) == 0 {
+		return &Envar{
+			vars: map[string]string{},
+		}, nil
+	}
 	var outMap = make(map[string]string)
 	file := core.ToAbs(envFile)
 	data, err := os.ReadFile(file)
@@ -82,7 +87,9 @@ func NewEnVarFromFile(envFile string) (*Envar, error) {
 			outMap[keyValue[0]] = removeTrail(keyValue[1])
 		}
 	} else {
-		core.Debug("cannot load env file: %s", err.Error())
+		if !strings.EqualFold(envFile, ".env") {
+			core.Debug("cannot load env file: %s", err.Error())
+		}
 	}
 	core.Debug("loaded environment file: %s\n", envFile)
 	return &Envar{
