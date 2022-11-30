@@ -403,12 +403,12 @@ func (b *Builder) runFunction(function string, path string, interactive bool, en
 		buildEnv = buildEnv.Append(fx.GetEnv())
 		// if the statement has a function call
 		if ok, _, _ := core.HasShell(cmd); ok {
-			cmd, err = EvalShell(cmd, buildEnv)
-			if err != nil {
-				return fmt.Errorf("cannot evaluate subshell expression in '%s': %s", cmd, err)
+			evalCmd, evalErr := EvalShell(cmd, buildEnv)
+			if evalErr != nil {
+				return fmt.Errorf("cannot evaluate subshell expression in '%s': %s", evalCmd, evalErr)
 			}
 			// execute the statement
-			err = execute(cmd, path, buildEnv, interactive)
+			err = execute(evalCmd, path, buildEnv, interactive)
 			if err != nil {
 				return fmt.Errorf("cannot execute command %s: %s", cmd, err)
 			}

@@ -21,6 +21,7 @@ import (
 	"southwinds.dev/artisan/conf"
 	"southwinds.dev/artisan/core"
 	"southwinds.dev/artisan/data"
+	"southwinds.dev/artisan/merge"
 	"strconv"
 	"strings"
 	"time"
@@ -243,7 +244,11 @@ func isExported(m *data.Manifest, fx string) bool {
 }
 
 func EvalShell(statement string, env conf.Configuration) (string, error) {
+	if env == nil {
+		env = merge.NewEnVarEmpty()
+	}
 	if ok, expr, shell := core.HasShell(statement); ok {
+		shell = strings.Trim(shell, " ")
 		core.Debug("subshell evaluation started: '%s'\n", shell)
 		usesArtisan := strings.HasPrefix(shell, "art ")
 		core.Debug("=> subshell uses artisan command: %t\n", usesArtisan)
@@ -263,7 +268,6 @@ func EvalShell(statement string, env conf.Configuration) (string, error) {
 				// merges the output of the subshell in the original variable
 				statement = strings.Replace(statement, expr, out[2:len(out)-2], 1)
 				core.Debug("=> unwrapped value is: '%s'\n", out[2:len(out)-2])
-				core.Debug("=> replaced cmd is: '%s'\n", statement)
 			} else {
 				return "", fmt.Errorf("non-empty returned value of subshell expression '%s', must be enclosed by double curly braces '{{...}}' markers to prevent potential corruption due to debug statements", shell)
 			}
