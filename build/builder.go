@@ -138,7 +138,7 @@ func (b *Builder) Run(function string, path string, interactive bool, env conf.C
 	}
 	bf, err := data.LoadBuildFile(filepath.Join(localPath, "build.yaml"))
 	if err != nil {
-		return fmt.Errorf("cannot load build file")
+		return err
 	}
 	b.buildFile = bf
 	return b.runFunction(function, localPath, interactive, env)

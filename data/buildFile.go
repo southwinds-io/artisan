@@ -181,7 +181,7 @@ func LoadBuildFile(path string) (*BuildFile, error) {
 			file, _ := filepath.Abs(filepath.Join(filepath.Dir(buildFile.path), i))
 			child, err := LoadBuildFile(file)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("build file include not found in path: %s, %s", file, err)
 			}
 			buildFile.Env = conf.MergeMaps(buildFile.Env, child.Env)
 			buildFile.Profiles = append(buildFile.Profiles, child.Profiles...)
