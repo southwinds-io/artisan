@@ -254,7 +254,7 @@ func EvalShell(statement string, env conf.Configuration) (string, error) {
 		core.Debug("=> subshell uses artisan command: %t\n", usesArtisan)
 		out, err := Exe(shell, "", env, false)
 		if err != nil {
-			return "", fmt.Errorf("cannot execute subshell command: %s", statement)
+			return "", fmt.Errorf("cannot execute subshell command '%s': %s", statement, err)
 		}
 		// ensure the subshell output does not end with newline
 		out = core.TrimNewline(out)
