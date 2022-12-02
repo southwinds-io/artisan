@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"southwinds.dev/artisan/conf"
 	"strings"
 
 	"southwinds.dev/artisan/data"
@@ -118,6 +119,40 @@ func NewSpec(path, creds string) (*Spec, error) {
 	spec.content = content
 
 	return spec, spec.Valid()
+}
+
+func NewSpecWithEnv(path, creds string, env conf.Configuration) (*Spec, error) {
+	s, err := NewSpec(path, creds)
+	if err != nil {
+		return nil, err
+	}
+	for key := range s.Images {
+		s.Images[key] = mergeVar(s.Images[key], env)
+	}
+	for key := range s.Packages {
+		s.Packages[key] = mergeVar(s.Packages[key], env)
+	}
+	s.Info = mergeVar(s.Info, env)
+	s.Version = mergeVar(s.Version, env)
+	return s, nil
+}
+
+func mergeVar(text string, env conf.Configuration) string {
+	evExpression := regexp.MustCompile("\\${(.*?)}")
+	matches := evExpression.FindAllString(text, -1)
+	// if we have matches
+	if matches != nil {
+		for _, match := range matches {
+			// get the name of the environment variable i.e. the name part in "${name}"
+			name := match[2 : len(match)-1]
+			// get the value of the variable
+			value := env.Get(name)
+			if len(value) > 0 {
+				text = strings.Replace(text, match, value, -1)
+			}
+		}
+	}
+	return text
 }
 
 func ExportSpec(opts ExportOptions) error {
