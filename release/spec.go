@@ -160,10 +160,10 @@ func mergeVar(text string, env conf.Configuration) string {
 	return text
 }
 
-func ExportSpec(opts ExportOptions) (map[string]string, error) {
+func ExportSpec(opts ExportOptions) error {
 	checksums := make(map[string]string)
 	if err := opts.Valid(); err != nil {
-		return nil, fmt.Errorf("invalid export options: %s\n", err)
+		return fmt.Errorf("invalid export options: %s\n", err)
 	}
 	var skipArtefact bool
 	// save packages first
@@ -178,12 +178,12 @@ func ExportSpec(opts ExportOptions) (map[string]string, error) {
 		}
 		name, err := core.ParseName(value)
 		if err != nil {
-			return nil, fmt.Errorf("invalid package name: %s", err)
+			return fmt.Errorf("invalid package name: %s", err)
 		}
 		uri := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(value))
 		checksum, err := l.ExportPackage([]core.PackageName{*name}, opts.SourceCreds, uri, opts.TargetCreds)
 		if err != nil {
-			return checksums, fmt.Errorf("cannot save package %s: %s", value, err)
+			return fmt.Errorf("cannot save package %s: %s", value, err)
 		}
 		checksums[key] = checksum[0]
 		if opts.LogRunHandler != nil {
@@ -213,7 +213,7 @@ func ExportSpec(opts ExportOptions) (map[string]string, error) {
 		// e.g. docker.io/mongo-express:latest will fail so use docker.io/library/mongo-express:latest instead
 		checksum, err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, opts.BuildProc)
 		if err != nil {
-			return checksums, fmt.Errorf("cannot save image %s: %s", value, err)
+			return fmt.Errorf("cannot save image %s: %s", value, err)
 		}
 		checksums[key] = checksum
 	}
@@ -221,17 +221,17 @@ func ExportSpec(opts ExportOptions) (map[string]string, error) {
 	// download linux packages
 	for key, value := range opts.Specification.OsPackages {
 		if len(value) == 0 {
-			return checksums, fmt.Errorf("missing package names in the spec file for type %s", value)
+			return fmt.Errorf("missing package names in the spec file for type %s", value)
 		}
 		if strings.ToLower(key) == "apt" {
 			cmd := "apt-get -v"
 			res, err := build.Exe(cmd, opts.ArtHome, merge.NewEnVarFromSlice([]string{}), false)
 			if err != nil {
-				return checksums, fmt.Errorf("failed to get the apt-get version number %s", err)
+				return fmt.Errorf("failed to get the apt-get version number %s", err)
 			}
 			re := regexp.MustCompile(`\d+\.(\d)*`)
 			if len(res) == 0 || len(re.FindString(res)) == 0 {
-				return checksums, fmt.Errorf("the host is not a debian distribution or apt-get package is missing")
+				return fmt.Errorf("the host is not a debian distribution or apt-get package is missing")
 			}
 
 			core.InfoLogger.Printf("performing %s exporting \n", key)
@@ -250,12 +250,12 @@ func ExportSpec(opts ExportOptions) (map[string]string, error) {
 			//export all debian packages into a single artisan package
 			err = BuildDebianPackage(pkges, &opts)
 			if err != nil {
-				return checksums, fmt.Errorf("failed to export debian package %s: %s", value, err)
+				return fmt.Errorf("failed to export debian package %s: %s", value, err)
 			}
 		} else if strings.ToLower(key) == "rpm" {
-			return checksums, fmt.Errorf("rpm packages are currently not support")
+			return fmt.Errorf("rpm packages are currently not support")
 		} else {
-			return checksums, fmt.Errorf("%s is invalid packaging option, valid values are apt, rpm", key)
+			return fmt.Errorf("%s is invalid packaging option, valid values are apt, rpm", key)
 		}
 	}
 	// finally, save the spec to the target location
@@ -263,12 +263,16 @@ func ExportSpec(opts ExportOptions) (map[string]string, error) {
 	// once all other artefacts have been exported
 	uri := fmt.Sprintf("%s/spec.yaml", opts.TargetUri)
 	core.InfoLogger.Printf("writing spec.yaml to %s", opts.TargetUri)
-	opts.Specification.Bytes()
-	err := resx.WriteFile(opts.Specification.content, uri, opts.TargetCreds)
+	// update spec attributes
+	opts.Specification.Sums = checksums
+	opts.Specification.Date = time.Now().UTC()
+	// marshal the spec
+	s := opts.Specification.Bytes()
+	err := resx.WriteFile(s, uri, opts.TargetCreds)
 	if err != nil {
-		return checksums, fmt.Errorf("cannot save spec file: %s", err)
+		return fmt.Errorf("cannot save spec file: %s", err)
 	}
-	return checksums, nil
+	return nil
 }
 
 func ImportSpec(opts ImportOptions) (*Spec, error) {
