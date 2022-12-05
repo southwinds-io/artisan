@@ -70,6 +70,7 @@ type PullOptions struct {
 	SourceCreds string
 	TargetCreds string
 	ArtHome     string
+	ImagesOnly  bool
 }
 
 func (o PullOptions) Valid() error {

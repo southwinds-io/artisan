@@ -122,6 +122,11 @@ func NewEnVarFromSlice(v []string) *Envar {
 func NewEnVarEmpty() *Envar {
 	return NewEnVarFromSlice([]string{})
 }
+
+func NewEnvVarOS() *Envar {
+	return NewEnVarFromSlice(os.Environ())
+}
+
 func (e *Envar) Add(key, value string) {
 	e.vars[key] = value
 }

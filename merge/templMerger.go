@@ -111,6 +111,10 @@ func (t *TemplMerger) Merge(env *Envar) error {
 	return nil
 }
 
+func (t *TemplMerger) Files() map[string][]byte {
+	return t.file
+}
+
 // mergeTem merges a single template file using tem format and the passed in variables
 func (t *TemplMerger) mergeTem(tem []byte, env Envar) ([]byte, error) {
 	content := string(tem)

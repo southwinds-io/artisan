@@ -24,10 +24,10 @@ import (
 
 // BuildImagePackage build a package containing a docker image
 // If a targetUri is specified, then the package is also exported to s3 or the file system
-func BuildImagePackage(imgName, packName, targetUri, creds, artHome string, v build.BuildHandler) error {
+func BuildImagePackage(imgName, packName, targetUri, creds, artHome string, v build.BuildHandler) (string, error) {
 	pName, err := core.ParseName(packName)
 	if err != nil {
-		return fmt.Errorf("invalid package name: %s, ensure the container image name fully specify host and user/group if from docker.io", err)
+		return "", fmt.Errorf("invalid package name: %s, ensure the container image name fully specify host and user/group if from docker.io", err)
 	}
 	// if a target has been specified
 	if len(targetUri) > 0 {
@@ -41,7 +41,7 @@ func BuildImagePackage(imgName, packName, targetUri, creds, artHome string, v bu
 	// should we use docker or podman?
 	containerCli, err := containerCmd()
 	if err != nil {
-		return fmt.Errorf("cannot create image archive: %s", err)
+		return "", fmt.Errorf("cannot create image archive: %s", err)
 	}
 	// create a build file to build the package containing the image tar
 	pbf := data.BuildFile{
@@ -58,7 +58,7 @@ func BuildImagePackage(imgName, packName, targetUri, creds, artHome string, v bu
 	}
 	pbfBytes, err := yaml.Marshal(pbf)
 	if err != nil {
-		return fmt.Errorf("cannot marshall packaging build file: %s", err)
+		return "", fmt.Errorf("cannot marshall packaging build file: %s", err)
 	}
 	// create a build file to import image tar in package
 	export := true
@@ -79,12 +79,12 @@ func BuildImagePackage(imgName, packName, targetUri, creds, artHome string, v bu
 	}
 	bfBytes, err := yaml.Marshal(bf)
 	if err != nil {
-		return fmt.Errorf("cannot marshall package build file: %s", err)
+		return "", fmt.Errorf("cannot marshall package build file: %s", err)
 	}
 
 	tmp, err := core.NewTempDir(artHome)
 	if err != nil {
-		return fmt.Errorf("cannot create temp folder for processing image archive: %s", err)
+		return "", fmt.Errorf("cannot create temp folder for processing image archive: %s", err)
 	}
 	// create a target folder for the artisan package
 	targetFolder := filepath.Join(tmp, "build")
@@ -96,18 +96,18 @@ func BuildImagePackage(imgName, packName, targetUri, creds, artHome string, v bu
 	_, err = build.Exe(cmd, tmp, merge.NewEnVarFromSlice([]string{}), false)
 	if err != nil {
 		os.RemoveAll(tmp)
-		return fmt.Errorf("cannot execute archive command: %s", err)
+		return "", fmt.Errorf("cannot execute archive command: %s", err)
 	}
 	core.InfoLogger.Println("packaging image tarball file")
 	err = os.WriteFile(filepath.Join(tmp, "build.yaml"), pbfBytes, 0755)
 	if err != nil {
 		os.RemoveAll(tmp)
-		return fmt.Errorf("cannot save packaging build file: %s", err)
+		return "", fmt.Errorf("cannot save packaging build file: %s", err)
 	}
 	err = os.WriteFile(filepath.Join(targetFolder, "build.yaml"), bfBytes, 0755)
 	if err != nil {
 		os.RemoveAll(tmp)
-		return fmt.Errorf("cannot save package build file: %s", err)
+		return "", fmt.Errorf("cannot save package build file: %s", err)
 	}
 	b := build.NewBuilder(artHome)
 	b.SetBProc(v)
@@ -115,14 +115,15 @@ func BuildImagePackage(imgName, packName, targetUri, creds, artHome string, v bu
 	r := registry.NewLocalRegistry(artHome)
 	// export package
 	core.InfoLogger.Printf("exporting image package to tarball file")
+	var checksums []string
 	if len(targetUri) > 0 {
-		err = r.ExportPackage([]core.PackageName{*pName}, "", targetUri, creds)
+		checksums, err = r.ExportPackage([]core.PackageName{*pName}, "", targetUri, creds)
 		if err != nil {
 			os.RemoveAll(tmp)
-			return fmt.Errorf("cannot save package to destination: %s", err)
+			return "", fmt.Errorf("cannot save package to destination: %s", err)
 		}
 	}
-	return nil
+	return checksums[0], nil
 }
 
 // return the command to run to launch a container

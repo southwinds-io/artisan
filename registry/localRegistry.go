@@ -9,6 +9,8 @@ package registry
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1064,13 +1066,14 @@ func (r *LocalRegistry) GetManifest(name *core.PackageName) *data.Manifest {
 // sourceCreds: the artisan registry credentials to pull the packages to save (in the format user:password)
 // targetUri: the URI where the tar archive should be saved (could be S3 or file system)
 // targetCreds: the credentials to connect to the targetUri (if it is authenticated S3 in the format user:password)
-func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, targetUri, targetCreds string) error {
+func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, targetUri, targetCreds string) ([]string, error) {
 	var (
-		pack  *Package
-		repo  *Repository
-		files []core.TarFile
-		reg   = LocalRegistry{}
-		err   error
+		pack      *Package
+		repo      *Repository
+		files     []core.TarFile
+		reg       = LocalRegistry{}
+		err       error
+		checksums []string
 	)
 	for _, name := range names {
 		// find the package metadata
@@ -1079,14 +1082,14 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 		if repo == nil {
 			pack, err = r.Pull(&name, sourceCreds, true)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		} else {
 			pack = r.FindPackageByName(&name)
 		}
 		// check if the package exists
 		if pack == nil {
-			return fmt.Errorf("package %s does not exist", name)
+			return nil, fmt.Errorf("package %s does not exist", name)
 		}
 		// works out the path to the package files in the local registry
 		zipFile := filepath.Join(core.RegistryPath(r.ArtHome), fmt.Sprintf("%s.zip", pack.FileRef))
@@ -1123,10 +1126,15 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 	// tar the package files without preserving directory structure
 	err = core.Tar(files, tar, false, r.ArtHome)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	content := tar.Bytes()
+	// calculates checksum
+	hasher := sha256.New()
+	if _, err = io.Copy(hasher, bytes.NewReader(content)); err != nil {
+		return nil, fmt.Errorf("cannot calculate tarball checksum")
+	}
+	checksums = append(checksums, fmt.Sprintf("sha256:%s", hex.EncodeToString(hasher.Sum(nil))))
 
 	// if no output has been specified
 	if len(targetUri) == 0 {
@@ -1144,16 +1152,16 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 			// creates target directory
 			err = os.MkdirAll(filepath.Dir(targetUri), 0755)
 			if err != nil {
-				return err
+				return checksums, err
 			}
 		}
 		core.InfoLogger.Printf("writing package tarball to %s", targetUri)
 		err = resx.WriteFile(content, targetUri, targetCreds)
 		if err != nil {
-			return err
+			return checksums, err
 		}
 	}
-	return nil
+	return checksums, nil
 }
 
 // Import a package tar archive into the local registry

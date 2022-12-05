@@ -140,7 +140,7 @@ func BuildDebianPackage(pkgNames []string, opts *ExportOptions) error {
 	if opts != nil {
 		// export package
 		core.InfoLogger.Printf("exporting debian package to tarball file")
-		err = r.ExportPackage([]core.PackageName{*pName}, "", targetUri, creds)
+		_, err = r.ExportPackage([]core.PackageName{*pName}, "", targetUri, creds)
 		if err != nil {
 			os.RemoveAll(tmp)
 			return fmt.Errorf("cannot save debian package to destination: %s", err)

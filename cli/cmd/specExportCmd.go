@@ -87,7 +87,7 @@ func (c *SpecExportCmd) Run(cmd *cobra.Command, args []string) {
 	// load the spec file
 	spec, err := NewSpec(path, "")
 	core.CheckErr(err, "cannot load spec.yaml")
-	core.CheckErr(ExportSpec(
+	_, err = ExportSpec(
 		ExportOptions{
 			Specification: spec,
 			TargetUri:     c.output,
@@ -95,5 +95,6 @@ func (c *SpecExportCmd) Run(cmd *cobra.Command, args []string) {
 			TargetCreds:   c.targetCreds,
 			Filter:        c.filter,
 			ArtHome:       c.home,
-		}), "cannot export spec")
+		})
+	core.CheckErr(err, "cannot export spec")
 }

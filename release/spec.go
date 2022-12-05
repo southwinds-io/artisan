@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"southwinds.dev/artisan/data"
+	"time"
 
 	"gopkg.in/yaml.v2"
 	"southwinds.dev/artisan/build"
@@ -47,6 +48,10 @@ type Spec struct {
 	OsPackages map[string]map[string]string `yaml:"os_packages,omitempty"`
 	// Run commands
 	Run []Run
+	// Sums checksums for artefacts
+	Sums map[string]string `yaml:"sums,omitempty"`
+	// Date the release date
+	Date time.Time
 
 	content []byte
 }
@@ -155,14 +160,15 @@ func mergeVar(text string, env conf.Configuration) string {
 	return text
 }
 
-func ExportSpec(opts ExportOptions) error {
+func ExportSpec(opts ExportOptions) (map[string]string, error) {
+	checksums := make(map[string]string)
 	if err := opts.Valid(); err != nil {
-		return fmt.Errorf("invalid export options: %s\n", err)
+		return nil, fmt.Errorf("invalid export options: %s\n", err)
 	}
 	var skipArtefact bool
 	// save packages first
 	l := registry.NewLocalRegistry(opts.ArtHome)
-	for _, value := range opts.Specification.Packages {
+	for key, value := range opts.Specification.Packages {
 		if skipArtefact, opts.Filter = skip(opts.Filter, value); skipArtefact {
 			if len(opts.Filter) == 0 {
 				core.WarningLogger.Printf("invalid filter expression '%s'\n", opts.Filter)
@@ -172,13 +178,14 @@ func ExportSpec(opts ExportOptions) error {
 		}
 		name, err := core.ParseName(value)
 		if err != nil {
-			return fmt.Errorf("invalid package name: %s", err)
+			return nil, fmt.Errorf("invalid package name: %s", err)
 		}
 		uri := fmt.Sprintf("%s/%s.tar", opts.TargetUri, pkgName(value))
-		err = l.ExportPackage([]core.PackageName{*name}, opts.SourceCreds, uri, opts.TargetCreds)
+		checksum, err := l.ExportPackage([]core.PackageName{*name}, opts.SourceCreds, uri, opts.TargetCreds)
 		if err != nil {
-			return fmt.Errorf("cannot save package %s: %s", value, err)
+			return checksums, fmt.Errorf("cannot save package %s: %s", value, err)
 		}
+		checksums[key] = checksum[0]
 		if opts.LogRunHandler != nil {
 			if pkgs, found := l.GetPackagesByName(name); found {
 				seal, err := l.GetSeal(pkgs[0])
@@ -193,7 +200,7 @@ func ExportSpec(opts ExportOptions) error {
 		}
 	}
 	// save images
-	for _, value := range opts.Specification.Images {
+	for key, value := range opts.Specification.Images {
 		if skipArtefact, opts.Filter = skip(opts.Filter, value); skipArtefact {
 			if len(opts.Filter) == 0 {
 				core.WarningLogger.Printf("invalid filter expression '%s'\n", opts.Filter)
@@ -204,26 +211,27 @@ func ExportSpec(opts ExportOptions) error {
 		// note: the package is saved with a name exactly the same as the container image
 		// to avoid the art package name parsing from failing, any images with no host or user/group in the name should be avoided
 		// e.g. docker.io/mongo-express:latest will fail so use docker.io/library/mongo-express:latest instead
-		err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, opts.BuildProc)
+		checksum, err := BuildImagePackage(value, value, opts.TargetUri, opts.TargetCreds, opts.ArtHome, opts.BuildProc)
 		if err != nil {
-			return fmt.Errorf("cannot save image %s: %s", value, err)
+			return checksums, fmt.Errorf("cannot save image %s: %s", value, err)
 		}
+		checksums[key] = checksum
 	}
 
 	// download linux packages
 	for key, value := range opts.Specification.OsPackages {
 		if len(value) == 0 {
-			return fmt.Errorf("missing package names in the spec file for type %s", value)
+			return checksums, fmt.Errorf("missing package names in the spec file for type %s", value)
 		}
 		if strings.ToLower(key) == "apt" {
 			cmd := "apt-get -v"
 			res, err := build.Exe(cmd, opts.ArtHome, merge.NewEnVarFromSlice([]string{}), false)
 			if err != nil {
-				return fmt.Errorf("failed to get the apt-get version number %s", err)
+				return checksums, fmt.Errorf("failed to get the apt-get version number %s", err)
 			}
 			re := regexp.MustCompile(`\d+\.(\d)*`)
 			if len(res) == 0 || len(re.FindString(res)) == 0 {
-				return fmt.Errorf("the host is not a debian distribution or apt-get package is missing")
+				return checksums, fmt.Errorf("the host is not a debian distribution or apt-get package is missing")
 			}
 
 			core.InfoLogger.Printf("performing %s exporting \n", key)
@@ -242,24 +250,25 @@ func ExportSpec(opts ExportOptions) error {
 			//export all debian packages into a single artisan package
 			err = BuildDebianPackage(pkges, &opts)
 			if err != nil {
-				return fmt.Errorf("failed to export debian package %s: %s", value, err)
+				return checksums, fmt.Errorf("failed to export debian package %s: %s", value, err)
 			}
 		} else if strings.ToLower(key) == "rpm" {
-			return fmt.Errorf("rpm packages are currently not support")
+			return checksums, fmt.Errorf("rpm packages are currently not support")
 		} else {
-			return fmt.Errorf("%s is invalid packaging option, valid values are apt, rpm", key)
+			return checksums, fmt.Errorf("%s is invalid packaging option, valid values are apt, rpm", key)
 		}
 	}
 	// finally, save the spec to the target location
 	// note: this is done last so that a minio notification can be triggered based on this file
 	// once all other artefacts have been exported
 	uri := fmt.Sprintf("%s/spec.yaml", opts.TargetUri)
+	core.InfoLogger.Printf("writing spec.yaml to %s", opts.TargetUri)
+	opts.Specification.Bytes()
 	err := resx.WriteFile(opts.Specification.content, uri, opts.TargetCreds)
 	if err != nil {
-		return fmt.Errorf("cannot save spec file: %s", err)
+		return checksums, fmt.Errorf("cannot save spec file: %s", err)
 	}
-	core.InfoLogger.Printf("writing spec.yaml to %s", opts.TargetUri)
-	return nil
+	return checksums, nil
 }
 
 func ImportSpec(opts ImportOptions) (*Spec, error) {
@@ -433,13 +442,15 @@ func PullSpec(opts PullOptions) error {
 	if err != nil {
 		return fmt.Errorf("cannot load specification: %s", err)
 	}
-	for _, pkg := range spec.Packages {
-		p, parseErr := core.ParseName(pkg)
-		if parseErr != nil {
-			return parseErr
+	if !opts.ImagesOnly {
+		for _, pkg := range spec.Packages {
+			p, parseErr := core.ParseName(pkg)
+			if parseErr != nil {
+				return parseErr
+			}
+			core.InfoLogger.Printf("pulling => %s\n", pkg)
+			local.Pull(p, opts.SourceCreds, false)
 		}
-		core.InfoLogger.Printf("pulling => %s\n", pkg)
-		local.Pull(p, opts.SourceCreds, false)
 	}
 	for _, image := range spec.Images {
 		core.InfoLogger.Printf("pulling => %s\n", image)
@@ -653,4 +664,12 @@ func (s *Spec) Valid() error {
 		}
 	}
 	return nil
+}
+
+func (s *Spec) Bytes() []byte {
+	b, err := yaml.Marshal(s)
+	if err != nil {
+		core.WarningLogger.Printf("cannot marshal spec: %s", err)
+	}
+	return b
 }

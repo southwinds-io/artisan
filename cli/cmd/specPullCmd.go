@@ -15,10 +15,11 @@ import (
 
 // SpecPullCmd pulls all artefacts defined in a spec
 type SpecPullCmd struct {
-	Cmd   *cobra.Command
-	home  string
-	creds string
-	user  string
+	Cmd        *cobra.Command
+	home       string
+	creds      string
+	user       string
+	imagesOnly bool
 }
 
 func NewSpecPullCmd(artHome string) *SpecPullCmd {
@@ -47,6 +48,7 @@ Example:
 	c.Cmd.Run = c.Run
 	c.Cmd.Flags().StringVarP(&c.creds, "creds", "c", "", "the credentials used to retrieve the specification from an endpoint")
 	c.Cmd.Flags().StringVarP(&c.creds, "user", "u", "", "the credentials used to retrieve packages from a remote artisan registry; for container images you should already be logged in (e.g. docker login)")
+	c.Cmd.Flags().BoolVarP(&c.imagesOnly, "images-only", "i", false, "-i; only pulls images, not packages")
 	return c
 }
 
@@ -61,6 +63,7 @@ func (c *SpecPullCmd) Run(cmd *cobra.Command, args []string) {
 		SourceCreds: c.creds,
 		TargetCreds: c.user,
 		ArtHome:     c.home,
+		ImagesOnly:  c.imagesOnly,
 	})
 	core.CheckErr(err, "cannot pull spec artefacts")
 }
