@@ -38,6 +38,8 @@ type ExportOptions struct {
 	TargetCreds   string
 	Filter        string
 	ArtHome       string
+	AddTimeStamp  bool
+	AddCheckSums  bool
 	BuildProc     build.BuildHandler
 	LogRunHandler data.RunHandler
 }

@@ -22,6 +22,8 @@ type SpecExportCmd struct {
 	targetCreds string
 	output      string
 	filter      string
+	time        bool
+	sums        bool
 }
 
 func NewSpecExportCmd(artHome string) *SpecExportCmd {
@@ -68,6 +70,8 @@ Examples:
 	c.Cmd.Flags().StringVarP(&c.srcCreds, "user", "u", "", "the credentials used to pull packages from an authenticated artisan registry, if the packages are not already in the local registry")
 	c.Cmd.Flags().StringVarP(&c.targetCreds, "creds", "c", "", "the credentials to write packages to a destination, if such destination implements authentication (e.g. s3)")
 	c.Cmd.Flags().StringVarP(&c.filter, "filter", "f", "", "a regular expression used to select spec artefacts to be exported; any artefacts not matched by the filter are skipped (e.g. -f \"^quay.*$\")")
+	c.Cmd.Flags().BoolVarP(&c.time, "timestamp", "t", false, "-t; adds a timestamp to the spec file after the export is complete")
+	c.Cmd.Flags().BoolVarP(&c.sums, "checksum", "s", false, "-s; adds checksums to the spec file after the export is complete")
 	c.Cmd.MarkFlagRequired("output")
 	return c
 }
@@ -95,6 +99,8 @@ func (c *SpecExportCmd) Run(cmd *cobra.Command, args []string) {
 			TargetCreds:   c.targetCreds,
 			Filter:        c.filter,
 			ArtHome:       c.home,
+			AddCheckSums:  c.sums,
+			AddTimeStamp:  c.time,
 		})
 	core.CheckErr(err, "cannot export spec")
 }

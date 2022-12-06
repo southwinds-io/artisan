@@ -264,8 +264,12 @@ func ExportSpec(opts ExportOptions) error {
 	uri := fmt.Sprintf("%s/spec.yaml", opts.TargetUri)
 	core.InfoLogger.Printf("writing spec.yaml to %s", opts.TargetUri)
 	// update spec attributes
-	opts.Specification.Sums = checksums
-	opts.Specification.Date = time.Now().UTC()
+	if opts.AddCheckSums {
+		opts.Specification.Sums = checksums
+	}
+	if opts.AddTimeStamp {
+		opts.Specification.Date = time.Now().UTC()
+	}
 	// marshal the spec
 	s := opts.Specification.Bytes()
 	err := resx.WriteFile(s, uri, opts.TargetCreds)
