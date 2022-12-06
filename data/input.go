@@ -281,8 +281,10 @@ func EvalVar(inputVar *Var, prompt bool, env conf.Configuration) error {
 		// survey the var value
 		surveyVar(inputVar)
 	} else {
-		// otherwise error
-		return fmt.Errorf("%s is required", inputVar.Name)
+		if inputVar.Required {
+			// otherwise error
+			return fmt.Errorf("%s is required", inputVar.Name)
+		}
 	}
 	return nil
 }
@@ -302,8 +304,10 @@ func EvalSecret(inputSecret *Secret, prompt bool, env conf.Configuration) error 
 		// survey the secret value
 		surveySecret(inputSecret)
 	} else {
-		// otherwise error
-		return fmt.Errorf("%s is required", inputSecret.Name)
+		if inputSecret.Required {
+			// otherwise error
+			return fmt.Errorf("%s is required", inputSecret.Name)
+		}
 	}
 	return nil
 }
