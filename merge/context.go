@@ -10,6 +10,7 @@ package merge
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // Context the merge context for artisan templates .art
@@ -38,7 +39,8 @@ func (c *Context) Exists(variableName reflect.Value) reflect.Value {
 
 // Var return the value of a variable
 func (c *Context) Var(name reflect.Value) reflect.Value {
-	return reflect.ValueOf(c.loader.vars[name.String()])
+	v := reflect.ValueOf(c.loader.vars[name.String()])
+	return v
 }
 
 // Select a specific variable group and populate all variable sets within the group
@@ -59,6 +61,26 @@ func (c *Context) Item(name reflect.Value, set reflect.Value) reflect.Value {
 		panic("Item function requires a set for the first parameter\n")
 	}
 	return reflect.ValueOf(s.Value[name.String()])
+}
+
+// ItemEq return a boolean indicating whether the value of a variable identified by key is equals to the passed-in value
+func (c *Context) ItemEq(name reflect.Value, set reflect.Value, value reflect.Value) reflect.Value {
+	s, ok := set.Interface().(Set)
+	if !ok {
+		panic("Item function requires a set for the first parameter\n")
+	}
+	v := reflect.ValueOf(s.Value[name.String()])
+	return reflect.ValueOf(strings.EqualFold(v.String(), value.String()))
+}
+
+// ItemNeq return a boolean indicating whether the value of a variable identified by key is not equal to the passed-in value
+func (c *Context) ItemNeq(name reflect.Value, set reflect.Value, value reflect.Value) reflect.Value {
+	s, ok := set.Interface().(Set)
+	if !ok {
+		panic("Item function requires a set for the first parameter\n")
+	}
+	v := reflect.ValueOf(s.Value[name.String()])
+	return reflect.ValueOf(!strings.EqualFold(v.String(), value.String()))
 }
 
 func (c *Context) GroupExists(group reflect.Value) bool {

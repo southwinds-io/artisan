@@ -21,12 +21,14 @@ import (
 
 // TemplMerger merge artisan templates using artisan inputs
 type TemplMerger struct {
-	regex    *regexp.Regexp
-	rexVar   *regexp.Regexp
-	rexRange *regexp.Regexp
-	rexItem  *regexp.Regexp
-	template map[string][]byte
-	file     map[string][]byte
+	regex      *regexp.Regexp
+	rexVar     *regexp.Regexp
+	rexRange   *regexp.Regexp
+	rexItem    *regexp.Regexp
+	rexItemEq  *regexp.Regexp
+	rexItemNeq *regexp.Regexp
+	template   map[string][]byte
+	file       map[string][]byte
 }
 
 // NewTemplMerger create a new instance of the template merger to merge files
@@ -53,11 +55,23 @@ func NewTemplMerger() (*TemplMerger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot compile regex: %s\n", err)
 	}
+	// parse {{ if %= "NAME" "VALUE" }}
+	rexItemEq, err := regexp.Compile(`{{\s*if\s%=\s*"(?P<NAME>[^"]*)"\s*"(?P<VALUE>[^"]*)"\s*}}`)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compile regex: %s\n", err)
+	}
+	// parse {{ if %!= "NAME" "VALUE" }}
+	rexItemNeq, err := regexp.Compile(`{{\s*if\s%!=\s*"(?P<NAME>[^"]*)"\s*"(?P<VALUE>[^"]*)"\s*}}`)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compile regex: %s\n", err)
+	}
 	return &TemplMerger{
-		regex:    regex,
-		rexVar:   rexVar,
-		rexRange: rexRange,
-		rexItem:  rexItem,
+		regex:      regex,
+		rexVar:     rexVar,
+		rexItem:    rexItem,
+		rexItemEq:  rexItemEq,
+		rexItemNeq: rexItemNeq,
+		rexRange:   rexRange,
 	}, nil
 }
 
@@ -164,11 +178,13 @@ func (t *TemplMerger) mergeART(path string, temp []byte, env Envar) ([]byte, err
 		return nil, err
 	}
 	tt, err := template.New(path).Funcs(template.FuncMap{
-		"select": ctx.Select,
-		"item":   ctx.Item,
-		"var":    ctx.Var,
-		"having": ctx.GroupExists,
-		"exists": ctx.Exists,
+		"select":  ctx.Select,
+		"item":    ctx.Item,
+		"itemEq":  ctx.ItemEq,
+		"itemNeq": ctx.ItemNeq,
+		"var":     ctx.Var,
+		"having":  ctx.GroupExists,
+		"exists":  ctx.Exists,
 	}).Parse(string(temp))
 	if err != nil {
 		return nil, err
@@ -195,6 +211,16 @@ func (t *TemplMerger) transpileOperators(source []byte) []byte {
 	names = t.rexItem.FindAllStringSubmatch(string(source), -1)
 	for _, n := range names {
 		str := strings.ReplaceAll(string(source), n[0], fmt.Sprintf("{{ item \"%s\" . }}", n[1]))
+		source = []byte(str)
+	}
+	names = t.rexItemEq.FindAllStringSubmatch(string(source), -1)
+	for _, n := range names {
+		str := strings.ReplaceAll(string(source), n[0], fmt.Sprintf("{{ if itemEq \"%s\" . \"%s\" }}", n[1], n[2]))
+		source = []byte(str)
+	}
+	names = t.rexItemNeq.FindAllStringSubmatch(string(source), -1)
+	for _, n := range names {
+		str := strings.ReplaceAll(string(source), n[0], fmt.Sprintf("{{ if itemNeq \"%s\" . \"%s\" }}", n[1], n[2]))
 		source = []byte(str)
 	}
 	return source

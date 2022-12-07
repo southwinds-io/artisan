@@ -89,3 +89,22 @@ func TestMergeUsingOperators(t *testing.T) {
 		fmt.Println(string(bytes))
 	}
 }
+
+func TestMerge(t *testing.T) {
+	env, err := NewEnVarFromFile("test2/.env")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	m, _ := NewTemplMerger()
+	err = m.LoadTemplates([]string{"test2/cluster_issuer_2.yaml.art"})
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	err = m.Merge(env)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	for _, bytes := range m.file {
+		fmt.Println(string(bytes))
+	}
+}
