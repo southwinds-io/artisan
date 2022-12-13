@@ -162,7 +162,7 @@ func TestSave(t *testing.T) {
 		t.Error(err)
 	}
 	r := registry.NewLocalRegistry(core.ArtDefaultHome)
-	err = r.ExportPackage(names, "", "./export", "")
+	_, err = r.ExportPackage(names, "", "./export", "")
 	if err != nil {
 		t.Error(err)
 	}
