@@ -144,7 +144,7 @@ func (p *Profile) Survey(bf *BuildFile) conf.Configuration {
 }
 
 func LoadBuildFile(path string) (*BuildFile, error) {
-	return nil, nil
+	return LoadBuildFileWithEnv(path, nil)
 }
 
 func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error) {
