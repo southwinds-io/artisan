@@ -144,6 +144,10 @@ func (p *Profile) Survey(bf *BuildFile) conf.Configuration {
 }
 
 func LoadBuildFile(path string) (*BuildFile, error) {
+	return nil, nil
+}
+
+func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error) {
 	if !filepath.IsAbs(path) {
 		abs, err := filepath.Abs(path)
 		if err != nil {
@@ -169,7 +173,10 @@ func LoadBuildFile(path string) (*BuildFile, error) {
 	if buildFile.Env == nil {
 		buildFile.Env = map[string]string{}
 	}
-	ev := merge.NewEnVarFromMap(buildFile.Env)
+	if ev == nil {
+		ev = merge.NewEnvVarOS()
+	}
+	ev.Merge(merge.NewEnVarFromMap(buildFile.Env))
 	ev.Replace()
 	buildFile.Env = ev.Vars()
 	buildFile.Env[core.ArtOS] = runtime.GOOS
@@ -179,7 +186,7 @@ func LoadBuildFile(path string) (*BuildFile, error) {
 		switch i := include.(type) {
 		case string:
 			file, _ := filepath.Abs(filepath.Join(filepath.Dir(buildFile.path), i))
-			child, err := LoadBuildFile(file)
+			child, err := LoadBuildFileWithEnv(file, ev)
 			if err != nil {
 				return nil, fmt.Errorf("build file include not found in path: %s, %s", file, err)
 			}
@@ -190,20 +197,21 @@ func LoadBuildFile(path string) (*BuildFile, error) {
 		case []interface{}:
 			incl := true
 			for _, condition := range i[1:] {
-				eq := strings.Split(condition.(string), "=")
-				if len(eq) == 2 {
-					value := buildFile.Env[eq[0]]
-					incl = incl && strings.EqualFold(value, eq[1])
-				}
 				neq := strings.Split(condition.(string), "!=")
 				if len(neq) == 2 {
 					value := buildFile.Env[neq[0]]
-					incl = incl && !strings.EqualFold(value, eq[1])
+					incl = incl && !strings.EqualFold(value, neq[1])
+				} else {
+					eq := strings.Split(condition.(string), "=")
+					if len(eq) == 2 {
+						value := buildFile.Env[eq[0]]
+						incl = incl && strings.EqualFold(value, eq[1])
+					}
 				}
 			}
 			if incl {
 				file, _ := filepath.Abs(filepath.Join(filepath.Dir(buildFile.path), i[0].(string)))
-				child, err := LoadBuildFile(file)
+				child, err := LoadBuildFileWithEnv(file, ev)
 				if err != nil {
 					return nil, err
 				}

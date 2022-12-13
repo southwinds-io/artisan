@@ -136,7 +136,7 @@ func (b *Builder) Run(function string, path string, interactive bool, env conf.C
 		}
 		localPath = absPath
 	}
-	bf, err := data.LoadBuildFile(filepath.Join(localPath, "build.yaml"))
+	bf, err := data.LoadBuildFileWithEnv(filepath.Join(localPath, "build.yaml"), env)
 	if err != nil {
 		return err
 	}

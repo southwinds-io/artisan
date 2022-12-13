@@ -38,5 +38,9 @@ func (list Vars) Less(i, j int) bool {
 	return siLower < sjLower
 }
 
+func (list Vars) Get(ix int) *Var {
+	return list[ix]
+}
+
 type VerifyHandler func(name *core.PackageName, seal *Seal, path string, authorisedAuthors []string, sign bool) error
 type RunHandler func(name *core.PackageName, fx string, seal *Seal) error

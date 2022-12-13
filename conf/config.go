@@ -20,6 +20,7 @@ type Configuration interface {
 	MergeMap(m map[string]string)
 	Append(m map[string]string) Configuration
 	Vars() map[string]string
+	Replace()
 	Slice() []string
 	String() string
 }
