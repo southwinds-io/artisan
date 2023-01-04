@@ -48,6 +48,8 @@ type Manifest struct {
 	Time string `json:"time"`
 	// the size of the package
 	Size string `json:"size"`
+	// the Stock Keeping Unit code
+	SKU string `json:"SKU,omitempty"`
 	// what functions are available to call?
 	Functions  []*FxInfo `json:"functions,omitempty"`
 	OpenPolicy string    `json:"open_policy,omitempty"`
