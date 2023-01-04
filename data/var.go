@@ -42,5 +42,14 @@ func (list Vars) Get(ix int) *Var {
 	return list[ix]
 }
 
+func (list Vars) GetByName(name string) *Var {
+	for _, v := range list {
+		if strings.EqualFold(v.Name, name) {
+			return v
+		}
+	}
+	return nil
+}
+
 type VerifyHandler func(name *core.PackageName, seal *Seal, path string, authorisedAuthors []string, sign bool) error
 type RunHandler func(name *core.PackageName, fx string, seal *Seal) error
