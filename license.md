@@ -617,7 +617,7 @@ END OF TERMS AND CONDITIONS
 
 Artisan Core - Automation Manager
 
-Copyright (C) 2022-Present [SouthWinds Tech Ltd](www.southwinds.io)
+Copyright (C) 2022-Present [SouthWinds Tech Ltd](https://www.southwinds.io)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
