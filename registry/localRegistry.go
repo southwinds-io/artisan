@@ -1,0 +1,1656 @@
+/*
+   Artisan Core - Automation Manager
+   Copyright (C) 2022-Present SouthWinds Tech Ltd - www.southwinds.io
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+package registry
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"golang.org/x/exp/slices"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"text/tabwriter"
+	"time"
+
+	"southwinds.dev/artisan/core"
+	"southwinds.dev/artisan/data"
+	"southwinds.dev/artisan/i18n"
+	resx "southwinds.dev/os"
+)
+
+// LocalRegistry the default local registry implemented as a file system
+type LocalRegistry struct {
+	Repositories []*Repository `json:"repositories"`
+	ArtHome      string
+}
+
+func (r *LocalRegistry) api(domain, artHome string) *Api {
+	return newGenericAPI(domain, artHome)
+}
+
+// NewLocalRegistry create a localRepo management structure
+func NewLocalRegistry(artHome string) *LocalRegistry {
+	r := &LocalRegistry{
+		Repositories: []*Repository{},
+		ArtHome:      artHome,
+	}
+	// load local registry
+	r.Load()
+	return r
+}
+
+// GetPackagesByName return all the packages within the same repository
+func (r *LocalRegistry) GetPackagesByName(name *core.PackageName) ([]*Package, bool) {
+	var packages = make([]*Package, 0)
+	for _, repository := range r.Repositories {
+		if repository.Repository == name.FullyQualifiedName() {
+			for _, packag := range repository.Packages {
+				packages = append(packages, packag)
+			}
+			break
+		}
+	}
+	if len(packages) > 0 {
+		return packages, true
+	}
+	return nil, false
+}
+
+func (r *LocalRegistry) Prune() error {
+	danglingRepo := r.findDanglingRepo()
+	if len(danglingRepo.Packages) > 0 {
+		for _, p := range danglingRepo.Packages {
+			// do nothing if it fails, as not important if actual package files not there
+			_ = r.removeFiles(p, r.ArtHome)
+		}
+	}
+	danglingRepo.Packages = nil
+	r.save()
+	// clears the content of the tmp folder
+	if pathExist(core.TmpPath(r.ArtHome)) {
+		err := cleanFolder(core.TmpPath(r.ArtHome))
+		if err != nil {
+			return fmt.Errorf("cannot clean tmp folder: %s", err)
+		}
+	}
+	// clears the content of the build folder
+	buildPath := path.Join(core.RegistryPath(r.ArtHome), "build")
+	if pathExist(buildPath) {
+		err := cleanFolder(buildPath)
+		if err != nil {
+			return fmt.Errorf("cannot clean build folder: %s", err)
+		}
+	}
+	return nil
+}
+
+func pathExist(path string) bool {
+	// get the absolute path
+	abs, _ := filepath.Abs(path)
+	// stats the path
+	_, err := os.Stat(abs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		} else {
+			core.WarningLogger.Printf("cannot stat path '%s': %s\n", abs, err)
+			return false
+		}
+	}
+	return true
+}
+
+// FindPackageByName return the package that matches the specified:
+// - domain/group/name:tag
+// nil if not found in the LocalRegistry
+func (r *LocalRegistry) FindPackageByName(name *core.PackageName) *Package {
+	// first gets the repository the package is in
+	for _, repository := range r.Repositories {
+		if repository.Repository == name.FullyQualifiedName() {
+			// try and get it by id first
+			for _, packag := range repository.Packages {
+				for _, tag := range packag.Tags {
+					// try and match against the full URI
+					if tag == name.Tag {
+						return packag
+					}
+				}
+			}
+			break
+		}
+	}
+	return nil
+}
+
+// FindPackageNamesById return the packages that matches the specified:
+// - package id substring
+func (r *LocalRegistry) FindPackageNamesById(id string) []*core.PackageName {
+	// go through the packages in the repository and check for Id matches
+	names := make([]*core.PackageName, 0)
+	// first gets the repository the package is in
+	for _, repository := range r.Repositories {
+		for _, packag := range repository.Packages {
+			// try and match against the package ID substring
+			if strings.HasPrefix(packag.Id, id) {
+				for _, tag := range packag.Tags {
+					// if the package is in the repository for dangling artefacts cannot get a name so returns nil
+					if strings.Contains(repository.Repository, "<none>") {
+						return nil
+					}
+					name, err := core.ParseName(fmt.Sprintf("%s:%s", repository.Repository, tag))
+					if err != nil {
+						log.Fatalf(err.Error())
+					}
+					names = append(names, name)
+				}
+			}
+		}
+	}
+	return names
+}
+
+func (r *LocalRegistry) FindPackageById(id string) *Package {
+	// first gets the repository the package is in
+	for _, repository := range r.Repositories {
+		for _, packag := range repository.Packages {
+			// try and match against the package ID substring
+			if strings.HasPrefix(packag.Id, id) {
+				return packag
+			}
+		}
+	}
+	return nil
+}
+
+// Update Package Id based on Seal checksum
+func (r *LocalRegistry) UpdatePkgId(name *core.PackageName, p *Package, s *data.Seal) error {
+	// find the repository
+	repo := r.findRepository(name)
+	if repo == nil {
+		return fmt.Errorf("cannot find repo")
+	}
+	// recreate the package Id
+	// update the package Id based on the (new) seal
+	updated := false
+	for ix, pack := range repo.Packages {
+		if pack.Id == p.Id {
+			id, err2 := s.PackageId()
+			if err2 != nil {
+				return err2
+			}
+			repo.Packages[ix].Id = id
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		return fmt.Errorf("cannot update package Id, package not found")
+	}
+	return r.save()
+}
+
+// Add the package and seal to the LocalRegistry
+func (r *LocalRegistry) Add(filename string, name *core.PackageName, s *data.Seal) error {
+	// gets the full base name (with extension)
+	basename := filepath.Base(filename)
+	// gets the basename directory only
+	basenameDir := filepath.Dir(filename)
+	// gets the base name extension
+	basenameExt := path.Ext(basename)
+	// gets the base name without extension
+	basenameNoExt := strings.TrimSuffix(basename, path.Ext(basename))
+	// if the file to add is not a zip file
+	if basenameExt != ".zip" {
+		return errors.New(fmt.Sprintf("the localRepo can only accept zip files, the extension provided was %s", basenameExt))
+	}
+	// move the zip file to the localRepo folder
+	if err := MoveFile(filename, filepath.Join(core.RegistryPath(r.ArtHome), basename)); err != nil {
+		return fmt.Errorf("failed to move package zip file to the local registry: %s", err)
+	}
+	// now move the seal file to the localRepo folder
+	if err := MoveFile(filepath.Join(basenameDir, fmt.Sprintf("%s.json", basenameNoExt)), filepath.Join(core.RegistryPath(r.ArtHome), fmt.Sprintf("%s.json", basenameNoExt))); err != nil {
+		return fmt.Errorf("failed to move package seal file to the local registry: %s", err)
+	}
+	// check if a package with the same name:tag exists
+	old := r.FindPackageByName(name)
+	// if a package was found
+	if old != nil {
+		// moves it to the dangling artefacts repository
+		r.moveToDangling(name)
+	}
+	// find the repository
+	repo := r.findRepository(name)
+	// if the repo does not exist the creates it
+	if repo == nil {
+		repo = &Repository{
+			Repository: name.FullyQualifiedName(),
+			Packages:   make([]*Package, 0),
+		}
+		r.Repositories = append(r.Repositories, repo)
+	}
+	pkgId, err := s.PackageId()
+	if err != nil {
+		return err
+	}
+	// creates a new package
+	packages := append(repo.Packages, &Package{
+		Id:      pkgId,
+		Type:    s.Manifest.Type,
+		FileRef: basenameNoExt,
+		Tags:    []string{name.Tag},
+		Size:    s.Manifest.Size,
+		Created: s.Manifest.Time,
+	})
+	repo.Packages = packages
+	// persist the changes
+	return r.save()
+}
+
+// moveToDangling move the specified package to the dangling artefacts repository
+// and remove any existing tags
+func (r *LocalRegistry) moveToDangling(name *core.PackageName) {
+	// get the package repository
+	repo := r.findRepository(name)
+	// get the package in the repository
+	p := r.FindPackageByName(name)
+	// get the dangling artefact repository
+	dangRepo := r.findDanglingRepo()
+	// remove the package from the original repository
+	repo.Packages = rmPackage(repo.Packages, p)
+	// change the package tag to none
+	p.Tags = []string{"<none>"}
+	// add the package to the dangling repo
+	dangRepo.Packages = append(dangRepo.Packages, p)
+}
+
+// findDanglingRepo find the dangling artefacts repository
+// if the repository does not exist, it creates one and adds it to the collection of
+// repositories of the registry
+func (r *LocalRegistry) findDanglingRepo() *Repository {
+	for _, r := range r.Repositories {
+		if strings.Contains(r.Repository, "none") {
+			return r
+		}
+	}
+	// if the dangling repo does not exist, it creates one
+	danglingRepo := &Repository{
+		Repository: "<none>",
+		Packages:   []*Package{},
+	}
+	// adds it to the collection of repos of the registry
+	r.Repositories = append(r.Repositories, danglingRepo)
+	// return the repo
+	return danglingRepo
+}
+
+// Tag remove a given tag from an package
+func (r *LocalRegistry) Tag(srcName, tgtName string) error {
+	// try the package Id
+	var (
+		sourceName *core.PackageName
+		err        error
+	)
+	// try to find the source package by its id
+	sourcePackage := r.FindPackageById(srcName)
+	// if the package was found and is dangling
+	if sourcePackage != nil && sourcePackage.IsDangling() {
+		// move the package to the target repository
+		if err = r.moveDanglingToRepo(sourcePackage, tgtName); err != nil {
+			return fmt.Errorf("cannot tag dangling package: %s", err)
+		}
+		// clean any nil package reference
+		for _, repository := range r.Repositories {
+			if repository.Repository == "<none>" {
+				for i := range repository.Packages {
+					// remove any nil package references to prevent errors in repository.json after saving it
+					if repository.Packages[i] == nil {
+						repository.Packages, _ = deletePackage(repository.Packages, i)
+					}
+				}
+			}
+		}
+		// persist changes
+		r.save()
+		// return
+		return nil
+	} else {
+		// the package could not be found by Id so try by name
+		sourceName, err = core.ParseName(srcName)
+		if err != nil {
+			return fmt.Errorf("invalid source package name %s; or it does not exist", srcName)
+		}
+		sourcePackage = r.FindPackageByName(sourceName)
+		// if the package is not found by name the exit with error
+		if sourcePackage == nil {
+			return fmt.Errorf("source package %s does not exist", sourceName)
+		}
+	}
+	targetName, err := core.ParseName(tgtName)
+	if err != nil {
+		return fmt.Errorf("invalid target package name %s; or it does not exist", tgtName)
+	}
+	if targetName.IsInTheSameRepositoryAs(sourceName) {
+		if !sourcePackage.HasTag(targetName.Tag) {
+			// if the source package has the target name tag
+			targetPackage := r.FindPackageByName(targetName)
+			if targetPackage != nil && targetPackage.HasTag(targetName.Tag) {
+				// remove the tag
+				targetPackage.Tags = removeItem(targetPackage.Tags, targetName.Tag)
+				// if no tags are left, add a default tag equal to the package file reference
+				if len(targetPackage.Tags) == 0 {
+					targetPackage.Tags = append(targetPackage.Tags, targetPackage.FileRef)
+				}
+			}
+			sourcePackage.Tags = append(sourcePackage.Tags, targetName.Tag)
+			r.save()
+			return nil
+		} else {
+			return nil
+		}
+	} else {
+		targetRepository := r.findRepository(targetName)
+		newPackage := *sourcePackage
+		// if the target package repository does not exist then create it
+		if targetRepository == nil {
+			newPackage.Tags = []string{targetName.Tag}
+			r.Repositories = append(r.Repositories, &Repository{
+				Repository: targetName.FullyQualifiedName(),
+				Packages: []*Package{
+					{
+						Id:      sourcePackage.Id,
+						Type:    sourcePackage.Type,
+						FileRef: sourcePackage.FileRef,
+						Tags:    []string{targetName.Tag},
+						Size:    sourcePackage.Size,
+						Created: sourcePackage.Created,
+					},
+				},
+			})
+			r.save()
+			return nil
+		} else {
+			targetPackage := r.FindPackageByName(targetName)
+			// if the package exists in the repository
+			if targetPackage != nil {
+				// check if the tag already exists
+				for _, tag := range targetPackage.Tags {
+					if tag == targetName.Tag {
+					} else {
+						// add the tag to the existing package
+						targetPackage.Tags = append(targetPackage.Tags, targetName.Tag)
+					}
+				}
+			} else {
+				// check that an package with the Id of the source exists
+				for _, a := range targetRepository.Packages {
+					// if the target repository already contains the package Id
+					if a.Id == sourcePackage.Id {
+						// add a tag
+						a.Tags = append(a.Tags, targetName.Tag)
+						r.save()
+						return nil
+					}
+				}
+				// add a new package metadata in the existing repository
+				targetRepository.Packages = append(targetRepository.Packages,
+					&Package{
+						Id:      sourcePackage.Id,
+						Type:    sourcePackage.Type,
+						FileRef: sourcePackage.FileRef,
+						Tags:    []string{targetName.Tag},
+						Size:    sourcePackage.Size,
+						Created: sourcePackage.Created,
+					})
+				r.save()
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func deletePackage(orig []*Package, index int) ([]*Package, error) {
+	if index < 0 || index >= len(orig) {
+		return nil, errors.New("index cannot be less than 0")
+	}
+	orig = append(orig[:index], orig[index+1:]...)
+	return orig, nil
+}
+
+func (r *LocalRegistry) AllPackages() []string {
+	var packages []string
+	for _, repo := range r.Repositories {
+		for _, p := range repo.Packages {
+			for _, tag := range p.Tags {
+				packages = append(packages, fmt.Sprintf("%s:%s", repo.Repository, tag))
+			}
+		}
+	}
+	return packages
+}
+
+// List packages to stdout
+func (r *LocalRegistry) List(artHome string, extended bool) {
+	// get a table writer for the stdout
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
+	// print the header row
+	var err error
+	if extended {
+		_, err = fmt.Fprintln(w, i18n.String(artHome, i18n.LBL_LS_HEADER_PLUS))
+	} else {
+		_, err = fmt.Fprintln(w, i18n.String(artHome, i18n.LBL_LS_HEADER))
+	}
+	core.CheckErr(err, "failed to write table header")
+	var (
+		s      *data.Seal
+		author string
+	)
+	// repository, tag, package id, created, size
+	for _, repo := range r.Repositories {
+		for _, a := range repo.Packages {
+			s, err = r.GetSeal(a)
+			if err != nil {
+				author = "unknown"
+			} else {
+				author = s.Manifest.Author
+			}
+			// if the package is dangling (no tags)
+			if len(a.Tags) == 0 {
+				if extended {
+					_, err = fmt.Fprintln(w, fmt.Sprintf("%s\t %s\t %s\t %s\t %s\t %s\t %s\t",
+						repo.Repository,
+						"<none>",
+						a.Id[0:12],
+						a.Type,
+						core.ToElapsedLabel(a.Created),
+						a.Size,
+						author),
+					)
+				} else {
+					_, err = fmt.Fprintln(w, fmt.Sprintf("%s\t %s\t %s\t %s\t %s\t %s\t",
+						repo.Repository,
+						"<none>",
+						a.Id[0:12],
+						a.Type,
+						core.ToElapsedLabel(a.Created),
+						a.Size),
+					)
+				}
+				core.CheckErr(err, "failed to write output")
+			}
+			for _, tag := range a.Tags {
+				if extended {
+					_, err = fmt.Fprintln(w, fmt.Sprintf("%s\t %s\t %s\t %s\t %s\t %s\t %s\t",
+						repo.Repository,
+						tag,
+						a.Id[0:12],
+						a.Type,
+						core.ToElapsedLabel(a.Created),
+						a.Size,
+						author),
+					)
+				} else {
+					_, err = fmt.Fprintln(w, fmt.Sprintf("%s\t %s\t %s\t %s\t %s\t %s\t",
+						repo.Repository,
+						tag,
+						a.Id[0:12],
+						a.Type,
+						core.ToElapsedLabel(a.Created),
+						a.Size),
+					)
+				}
+				core.CheckErr(err, "failed to write output")
+			}
+		}
+	}
+	err = w.Flush()
+	core.CheckErr(err, "failed to flush output")
+}
+
+func (r *LocalRegistry) GetNetwork(packageName string, functionName string) (*data.Network, error) {
+	pkg, err := core.ParseName(packageName)
+	if err != nil {
+		return nil, err
+	}
+	p := r.FindPackageByName(pkg)
+	if p == nil {
+		return nil, nil // if no package is found it should bypass network check
+		// return nil, fmt.Errorf("cannot find package '%s'", packageName)
+	}
+	seal, err := r.GetSeal(p)
+	if err != nil {
+		return nil, fmt.Errorf("cannot retrieve seal: %s", err)
+	}
+	fx := seal.Manifest.Fx(functionName)
+	if fx == nil {
+		return nil, fmt.Errorf("function '%s' not found in package '%s'", functionName, packageName)
+	}
+	if fx.Network == nil {
+		// not a network function, then returns
+		return nil, nil
+	}
+	return fx.Network, nil
+}
+
+// ListQ list (quiet) package IDs only
+func (r *LocalRegistry) ListQ() {
+	// get a table writer for the stdout
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 0, ' ', 0)
+	// repository, tag, package id, created, size
+	for _, repo := range r.Repositories {
+		for _, a := range repo.Packages {
+			_, err := fmt.Fprintln(w, fmt.Sprintf("%s", a.Id[0:12]))
+			core.CheckErr(err, "failed to write package Id")
+		}
+	}
+	err := w.Flush()
+	core.CheckErr(err, "failed to flush output")
+}
+
+func (r *LocalRegistry) Push(name *core.PackageName, credentials string, showWarnings bool) error {
+	// get a reference to the remote registry
+	api := r.api(name.Domain, r.ArtHome)
+	// get registry credentials
+	uname, pwd := core.RegUserPwd(credentials)
+	// fetch the package info from the local registry
+	localPackage := r.FindPackageByName(name)
+	if localPackage == nil {
+		return fmt.Errorf("package '%s' not found in the local registry\n", name)
+	}
+	// assume tls enabled
+	tls := true
+	// check the status of the package in the remote registry
+	remotePackage, err := api.GetPackageInfo(name.Group, name.Name, localPackage.Id, uname, pwd, tls)
+	if err != nil {
+		// try without tls
+		var err2 error
+		remotePackage, err2 = api.GetPackageInfo(name.Group, name.Name, localPackage.Id, uname, pwd, false)
+		if err2 == nil {
+			tls = false
+			if showWarnings {
+				core.WarningLogger.Printf("the connection to the registry is not secure, consider connecting to a TLS enabled registry\n")
+			}
+		} else {
+			if err2 != nil {
+				return fmt.Errorf("art push '%s' cannot retrieve remote package information: %s", name.String(), err2)
+			}
+		}
+	}
+	// if the package exists in the remote registry
+	if remotePackage != nil {
+		// if the tag is the same then nothing to do
+		if remotePackage.HasTag(name.Tag) {
+			// nothing to do, returns
+			i18n.Printf(r.ArtHome, i18n.INFO_NOTHING_TO_PUSH)
+			return nil
+		} else {
+			// check if another package has the same tag
+			repo, err2, code := api.GetRepositoryInfo(name.Group, name.Name, uname, pwd, false)
+			if err2 != nil {
+				return fmt.Errorf("cannot get remote repository information, the remote registry responsed with HTTP status %d: %s", code, err2)
+			}
+			// is the tag in the repo already?
+			if pkg, exists := repo.GetTag(name.Tag); exists {
+				// then remove the tag from the package
+				pkg.Tags = removeItem(pkg.Tags, name.Tag)
+				// update remote package info
+				err3 := api.UpsertPackageInfo(name, pkg, uname, pwd, false)
+				if err3 != nil {
+					return fmt.Errorf("cannot untag remote package: %s", err3)
+				}
+			}
+			// if the package has a different tag then the metadata has to be updated to include the new tag
+			remotePackage.Tags = append(remotePackage.Tags, name.Tag)
+			err = api.UpsertPackageInfo(name, remotePackage, uname, pwd, tls)
+			if err != nil {
+				return fmt.Errorf("cannot update remote package tags: %s", err)
+			}
+			i18n.Printf(r.ArtHome, i18n.INFO_TAGGED, name.String())
+			// once the new tag has been added to the remote repository, exits
+			return nil
+		}
+	}
+	// if the package does not exist in the remote registry, it could be that the name:tag is already used by another package
+	// so, it checks if the tag has been applied to another package in the remote repository
+	repo, err, status := api.GetRepositoryInfo(name.Group, name.Name, uname, pwd, tls)
+	if err != nil {
+		if status == http.StatusUnauthorized {
+			return fmt.Errorf("unauthorised access to registry, check your credentials")
+		}
+		return fmt.Errorf("art push '%s' cannot retrieve repository information from registry", name.String())
+	}
+	// if the tag is in use
+	var ok bool
+	if remotePackage, ok = repo.GetTag(name.Tag); ok {
+		// ==========================
+		// removes overridden package
+		// ==========================
+		// first deletes the old package files
+		err = api.DeletePackage(name.Group, name.Name, name.Tag, uname, pwd, tls)
+		if err != nil {
+			return fmt.Errorf("art push '%s' cannot remove old package from remote registry: %s", name.String(), err)
+		}
+		// then can remove the old package metadata form the remote repository
+		// if not done in this order delete package would fail with 404 not found
+		err = api.DeletePackageInfo(name.Group, name.Name, remotePackage.Id, uname, pwd, tls)
+		if err != nil {
+			return fmt.Errorf("art push '%s' cannot remove old package metadata from remote registry: %s", name.String(), err)
+		}
+	}
+	// ==========================
+	// adds new package
+	// ==========================
+	zipfile := openFile(fmt.Sprintf("%s/%s.zip", core.RegistryPath(r.ArtHome), localPackage.FileRef))
+	jsonfile := openFile(fmt.Sprintf("%s/%s.json", core.RegistryPath(r.ArtHome), localPackage.FileRef))
+	// prepare the package to upload
+	pack := localPackage
+	pack.Tags = []string{name.Tag}
+	// execute the upload
+	return api.UploadPackage(name, localPackage.FileRef, zipfile, jsonfile, pack, uname, pwd, tls, r.ArtHome)
+}
+
+func (r *LocalRegistry) Pull(name *core.PackageName, credentials string, showWarnings bool) (*Package, error) {
+	// get a reference to the remote registry
+	api := r.api(name.Domain, r.ArtHome)
+	// get registry credentials
+	uname, pwd := core.RegUserPwd(credentials)
+	// assume tls enabled
+	tls := true
+	// get remote repository information
+	repoInfo := &repositoryInfo{
+		name:  *name,
+		uname: uname,
+		pwd:   pwd,
+		tls:   tls,
+		api:   *api,
+	}
+	err := getRepositoryInfoRetry(repoInfo)
+	repo := repoInfo.repo
+	if err != nil {
+		var err2 error
+		// attempt not to use tls
+		repoInfo.tls = false
+		err2 = getRepositoryInfoRetry(repoInfo)
+		repo = repoInfo.repo
+		// if successful means remote endpoint in not tls enabled
+		if err2 == nil {
+			// switches tls off
+			tls = false
+			// issue warning
+			if showWarnings {
+				core.WarningLogger.Printf("the connection to the registry is not secure, consider connecting to a TLS enabled registry\n")
+			}
+		} else {
+			if err2 != nil {
+				return nil, fmt.Errorf("art pull '%s' cannot retrieve repository information from registry: %s", name.String(), err2)
+			}
+		}
+	}
+	// find the package to pull in the remote repository
+	remoteArt, exists := repo.GetTag(name.Tag)
+	if !exists {
+		// if it does not exist return
+		return nil, fmt.Errorf("package '%s', does not exist", name)
+	}
+	// check the package is not in the local registry
+	localPackage := r.findPackageByRepo(name)
+	// get the digest of the local package
+	var digestMismatch, localIsNewer bool
+	if localPackage != nil {
+		seal, err := r.GetSeal(localPackage)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get local package seal: %s", err)
+		}
+		localDigest := seal.Digest
+		// get the digest of the remote package
+		remote, err := NewRemoteRegistry(name.Domain, uname, pwd, r.ArtHome)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create remote registry: %s", err)
+		}
+		remoteDigest, err, status := remote.GetDigest(name)
+		if err != nil {
+			return nil, fmt.Errorf("cannot retrieve package digest, %d %s", status, err)
+		}
+		digestMismatch = !strings.EqualFold(localDigest, remoteDigest.Value)
+		localTime, err := time.Parse(time.RFC850, seal.Manifest.Time)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse package local time: %s", err)
+		}
+		remoteTime, err := time.Parse(time.RFC850, remoteDigest.Date)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse package local time: %s", err)
+		}
+		localIsNewer = localTime.UnixNano() > remoteTime.UnixNano()
+	}
+	// if the local registry does not have the package or there is a mismatch of package digests
+	// then download the remote package
+	if localPackage == nil {
+		attempts := 5
+		// download package seal file
+		sealDownloadInfo := &downloadInfo{
+			name:     *name,
+			filename: fmt.Sprintf("%s.json", remoteArt.FileRef),
+			uname:    uname,
+			pwd:      pwd,
+			tls:      tls,
+			api:      *api,
+		}
+		downErr := downloadFileRetry(sealDownloadInfo, attempts)
+		if downErr != nil {
+			return nil, fmt.Errorf("failed to download package seal file: %s", downErr)
+		}
+		sealFilename := sealDownloadInfo.downloadedFilename
+
+		// download package zip file
+		packageDownloadInfo := &downloadInfo{
+			name:     *name,
+			filename: fmt.Sprintf("%s.zip", remoteArt.FileRef),
+			uname:    uname,
+			pwd:      pwd,
+			tls:      tls,
+			api:      *api,
+		}
+		downErr = downloadFileRetry(packageDownloadInfo, attempts)
+		if downErr != nil {
+			return nil, fmt.Errorf("failed to download package zip file: %s", downErr)
+		}
+		packageFilename := packageDownloadInfo.downloadedFilename
+		var (
+			seal  *data.Seal
+			valid bool
+		)
+		seal, err = r.loadSeal(sealFilename)
+		if err != nil {
+			return nil, fmt.Errorf("cannot load package seal: %s", err)
+		}
+		// if the downloaded package digest does not match the one stored in the seal manifest
+		if valid, err = seal.Valid(packageFilename); !valid {
+			core.InfoLogger.Printf("package files corruption detected after download: %s, retrying %d times, stand by...\n", err, attempts)
+
+			// retry the download of the package seal file
+			downErr = downloadFileRetry(sealDownloadInfo, attempts)
+			if downErr != nil {
+				return nil, fmt.Errorf("retry failed to download the package seal file: %s", downErr)
+			}
+			sealFilename = sealDownloadInfo.downloadedFilename
+
+			// retry the download of the package zip file
+			downErr = downloadFileRetry(packageDownloadInfo, attempts)
+			if downErr != nil {
+				return nil, fmt.Errorf("retry failed to download the package zip file: %s", downErr)
+			}
+			packageFilename = packageDownloadInfo.downloadedFilename
+			if valid, err = seal.Valid(packageFilename); !valid {
+				return nil, fmt.Errorf("package files corruption detected after retry: %s", err)
+			}
+		}
+		// add the package to the local registry
+		err := r.Add(packageFilename, name, seal)
+		if err != nil {
+			return nil, fmt.Errorf("cannot add package to local registry: %s", err)
+		}
+	} else if localPackage != nil && digestMismatch {
+		core.InfoLogger.Printf("digest change detected\n")
+		// the packages exist in the local and remote registries but the digests are different
+		if localIsNewer {
+			core.WarningLogger.Printf("local package is newer than the one in the registry, to pull from the registry you must delete the local package first\n")
+		} else {
+			core.InfoLogger.Printf("updating local package\n")
+			// remove the local package
+			err := r.Remove([]string{name.String()})
+			if err != nil {
+				return nil, fmt.Errorf("failed to remove local package: %s", err)
+			}
+			// pull the remote
+			return r.Pull(name, fmt.Sprintf("%s:%s", uname, pwd), showWarnings)
+		}
+	} else {
+		// if the remote package repository exists locally
+		if r.findPackageByRepoAndId(name, remoteArt.Id) != nil {
+			repoIx, packageIx := r.artCoords(name, localPackage)
+			tags := r.Repositories[repoIx].Packages[packageIx].Tags
+			// check if the local package does not have the remote tag
+			if slices.IndexFunc(tags, func(tag string) bool {
+				return tag == name.Tag
+			}) == -1 {
+				// add the tag locally
+				r.Repositories[repoIx].Packages[packageIx].Tags = append(r.Repositories[repoIx].Packages[packageIx].Tags, name.Tag)
+				// persist the changes
+				r.save()
+				fmt.Printf("tagged '%s' with '%s'\n", name.FullyQualifiedName(), name.Tag)
+			} else {
+				fmt.Printf("nothing to pull\n")
+			}
+		} else { // at this point the package exists locally but in a different repository or repositories
+			// it needs to create the repository metadata and link it to the package
+			r.Repositories = append(r.Repositories, &Repository{
+				Repository: name.FullyQualifiedName(), // the local registry needs the fully qualified name because is multi repository
+				Packages:   []*Package{remoteArt},
+			})
+			// persist the changes
+			r.save()
+			fmt.Printf("added package '%s' to repository '%s'\n", localPackage.Id, name.FullyQualifiedName())
+		}
+	}
+	return r.FindPackageByName(name), nil
+}
+
+func (r *LocalRegistry) loadSeal(sealFilename string) (*data.Seal, error) {
+	// unmarshal the seal
+	sealFile, err := os.Open(sealFilename)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read package seal file: %s", err)
+	}
+	seal := new(data.Seal)
+	sealBytes, err := io.ReadAll(sealFile)
+	// exit if it failed to read the seal
+	if err != nil {
+		return nil, fmt.Errorf("cannot read package seal file: %s", err)
+	}
+	// release the handle on the seal
+	err = sealFile.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close seal file stream: %s", err)
+	}
+	// unmarshal the seal
+	err = json.Unmarshal(sealBytes, seal)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal package seal file: %s", err)
+	}
+	if seal.Manifest.Labels == nil {
+		seal.Manifest.Labels = map[string]string{}
+	}
+	if seal.Manifest.Functions == nil {
+		seal.Manifest.Functions = []*data.FxInfo{}
+	}
+	return seal, nil
+}
+
+func (r *LocalRegistry) Open(name *core.PackageName, credentials string, targetPath string, v data.VerifyHandler, rh data.RunHandler, authorisedAuthors []string) error {
+	var err error
+	if len(targetPath) == 0 {
+		targetPath = core.WorkDir()
+	} else {
+		if !filepath.IsAbs(targetPath) {
+			targetPath, err = filepath.Abs(targetPath)
+			if err != nil {
+				return fmt.Errorf("cannot convert open path to absolute path: %s", err)
+			}
+		}
+	}
+	// fetch from local registry
+	pkg := r.FindPackageByName(name)
+	// if not found locally
+	if pkg == nil {
+		// pull it
+		pkg, err = r.Pull(name, credentials, true)
+		if err != nil {
+			return err
+		}
+	}
+	// get the package seal
+	seal, err := r.GetSeal(pkg)
+	if err != nil {
+		return fmt.Errorf("cannot read package seal: %s", err)
+	}
+	if len(seal.Manifest.Author) > 0 && len(seal.Seal) > 0 && v == nil {
+		return fmt.Errorf("you are trying to run an encrypted package, which requires Artisan Enterprise; see https://docs.artisan.gdn/installation for upgrade instructions")
+	}
+	// now we are ready to open it
+	// if the target was already compressed (e.g. jar file, etc.) then it should not unzip it but rename it
+	// to ist original file extension
+	src := path.Join(core.RegistryPath(r.ArtHome), fmt.Sprintf("%s.zip", pkg.FileRef))
+	if _, err = os.Stat(targetPath); os.IsNotExist(err) {
+		err = os.MkdirAll(targetPath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("cannot create path to open package: %s, %s", targetPath, err)
+		}
+	}
+	zipTempFilePath := path.Join(targetPath, fmt.Sprintf("%s.zip", pkg.FileRef))
+	err = CopyFile(src, zipTempFilePath)
+	defer func() {
+		_ = os.RemoveAll(zipTempFilePath)
+	}()
+	if err != nil {
+		return fmt.Errorf("cannot copy package to working folder: %s", err)
+	}
+	if v != nil {
+		err = v(name, seal, zipTempFilePath, authorisedAuthors, 0)
+		if err != nil {
+			return err
+		}
+		if rh != nil {
+			err = rh(name, "__open__", seal)
+		}
+	}
+	// otherwise, unzip the target
+	err = unzip(zipTempFilePath, targetPath)
+	if err != nil {
+		return fmt.Errorf("cannot unzip package %s.zip", pkg.FileRef)
+	}
+	// check if the target path is a folder
+	var info os.FileInfo
+	info, err = os.Stat(targetPath)
+	if err != nil {
+		return fmt.Errorf("cannot stat target path %s", err)
+	}
+	// only get rid of the target folder if there is one
+	if info.IsDir() {
+		srcPath := path.Join(targetPath, seal.Manifest.Target)
+		info, err = os.Stat(srcPath)
+		if err != nil {
+			return fmt.Errorf("cannot stat source path %s: %s", srcPath, err)
+		}
+		// if the source path is a folder
+		if info.IsDir() {
+			// unwrap the folder
+			err = MoveFolderContent(srcPath, targetPath)
+			if err != nil {
+				return fmt.Errorf("cannot move target folder content: %s", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (r *LocalRegistry) removePkg(pkg *Package, artHome string) error {
+	repoIxList := r.findRepositoryIxByPackageId(pkg.Id)
+	for _, repoIx := range repoIxList {
+		// if the repository contains the package
+		if r.Repositories[repoIx].FindPackage(pkg.Id) != nil {
+			// remove the package
+			r.Repositories[repoIx].Packages = r.removePackageById(r.Repositories[repoIx].Packages, pkg.Id)
+		}
+		// if the repo does not have more packages
+		if len(r.Repositories[repoIx].Packages) == 0 {
+			// removes the repo
+			r.Repositories = r.removeRepo(r.Repositories, *r.Repositories[repoIx])
+		}
+	}
+	err := r.removeFiles(pkg, artHome)
+	if err != nil {
+		return err
+	}
+	return r.save()
+}
+
+func (r *LocalRegistry) removeByName(name *core.PackageName) error {
+	pkg := r.FindPackageByName(name)
+	if pkg == nil {
+		return fmt.Errorf("package %s does not exist", name.FullyQualifiedNameTag())
+	}
+	// get repository by name
+	repoIx := -1
+	for ix, repository := range r.Repositories {
+		if repository.Repository == name.FullyQualifiedName() {
+			repoIx = ix
+			break
+		}
+	}
+	if repoIx == -1 {
+		return fmt.Errorf("package %s does not exist", name.FullyQualifiedNameTag())
+	}
+	for pix, p := range r.Repositories[repoIx].Packages {
+		for _, tag := range p.Tags {
+			if tag == name.Tag {
+				// remove the tag
+				r.Repositories[repoIx].Packages[pix].Tags = removeItem(r.Repositories[repoIx].Packages[pix].Tags, tag)
+				// if there are no more tags
+				if len(r.Repositories[repoIx].Packages[pix].Tags) == 0 {
+					// remove the package
+					r.Repositories[repoIx].Packages = removePackage(r.Repositories[repoIx].Packages, p)
+				}
+				break
+			}
+		}
+	}
+	// if there are no more packages in the repo
+	if len(r.Repositories[repoIx].Packages) == 0 {
+		// remove the repo
+		r.Repositories = r.removeRepo(r.Repositories, *r.Repositories[repoIx])
+	}
+	// check if there is any repos left for the package
+	rIx := r.findRepositoryIxByPackageId(pkg.Id)
+	// if not, then
+	if len(rIx) == 0 {
+		// remove the files
+		err := r.removeFiles(pkg, r.ArtHome)
+		if err != nil {
+			return err
+		}
+	}
+	return r.save()
+}
+
+func (r *LocalRegistry) Remove(names []string) error {
+	for _, name := range names {
+		// try and find the package using its unique ID
+		pkg := r.FindPackageById(name)
+		// if the package was found
+		if pkg != nil {
+			// remove it completely including files and references in repositories
+			return r.removePkg(pkg, r.ArtHome)
+		}
+		// the package was not found by its ID, so try by name
+		pkgName, err := core.ParseName(name)
+		if err != nil {
+			return fmt.Errorf("invalid package name: %s", err)
+		}
+		// try and find the package by name
+		pkg = r.FindPackageByName(pkgName)
+		// if a package with the name was found
+		if pkg != nil {
+			// remove the package name (if there is not more associated names then removes the package files)
+			err = r.removeByName(pkgName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *LocalRegistry) RemoveAll() error {
+	files, err := r.getPackageFiles()
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if err = os.Remove(file); err != nil {
+			core.WarningLogger.Printf("cannot delete file: %s\n", err)
+		}
+	}
+	return nil
+}
+
+func (r *LocalRegistry) GetSeal(name *Package) (*data.Seal, error) {
+	sealFilename := path.Join(core.RegistryPath(r.ArtHome), fmt.Sprintf("%s.json", name.FileRef))
+	sealFile, err := os.Open(sealFilename)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open seal file %s: %s", sealFilename, err)
+	}
+	sealBytes, err := io.ReadAll(sealFile)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seal file %s: %s", sealFilename, err)
+	}
+	seal := new(data.Seal)
+	err = json.Unmarshal(sealBytes, seal)
+	return seal, err
+}
+
+func (r *LocalRegistry) GetManifest(name *core.PackageName) *data.Manifest {
+	// find the package in the local registry
+	a := r.FindPackageByName(name)
+	if a == nil {
+		core.RaiseErr("package '%s' not found in the local registry, pull it from remote first", name)
+	}
+	seal, err := r.GetSeal(a)
+	core.CheckErr(err, "cannot get package seal")
+	return seal.Manifest
+}
+
+// ExportPackage exports one or more packages as a tar archive to the target URI
+// names: the slice of packages to save
+// sourceCreds: the artisan registry credentials to pull the packages to save (in the format user:password)
+// targetUri: the URI where the tar archive should be saved (could be S3 or file system)
+// targetCreds: the credentials to connect to the targetUri (if it is authenticated S3 in the format user:password)
+func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, targetUri, targetCreds string) ([]string, error) {
+	var (
+		pack      *Package
+		repo      *Repository
+		files     []core.TarFile
+		reg       = LocalRegistry{}
+		err       error
+		checksums []string
+	)
+	for _, name := range names {
+		// find the package metadata
+		repo = r.findRepository(&name)
+		// if not found locally, pull the package from remote (needs credentials)
+		if repo == nil {
+			pack, err = r.Pull(&name, sourceCreds, true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			pack = r.FindPackageByName(&name)
+		}
+		// check if the package exists
+		if pack == nil {
+			return nil, fmt.Errorf("package %s does not exist", name)
+		}
+		// works out the path to the package files in the local registry
+		zipFile := filepath.Join(core.RegistryPath(r.ArtHome), fmt.Sprintf("%s.zip", pack.FileRef))
+		jsonFile := filepath.Join(core.RegistryPath(r.ArtHome), fmt.Sprintf("%s.json", pack.FileRef))
+		// append the package index data
+		reg.Repositories = append(reg.Repositories, &Repository{
+			Repository: repo.Repository,
+			Packages: []*Package{ // only the exported package
+				{
+					Id:      pack.Id,
+					Type:    pack.Type,
+					FileRef: pack.FileRef,
+					Size:    pack.Size,
+					Created: pack.Created,
+					Tags:    []string{name.Tag}, // only the exported tag
+				},
+			},
+		})
+		// add the package files to the archive list
+		files = append(files, []core.TarFile{
+			// add package seal
+			{Path: jsonFile},
+			// add package content
+			{Path: zipFile},
+		}...)
+	}
+	// add repository metadata to the archive list
+	files = append(files, core.TarFile{
+		Bytes: core.ToJsonBytes(reg),
+		Name:  "repository.json",
+	})
+	// creates a bytes buffer to record content of tar
+	tar := &bytes.Buffer{}
+	// tar the package files without preserving directory structure
+	err = core.Tar(files, tar, false, r.ArtHome)
+	if err != nil {
+		return nil, err
+	}
+	content := tar.Bytes()
+	// calculates checksum
+	hasher := sha256.New()
+	if _, err = io.Copy(hasher, bytes.NewReader(content)); err != nil {
+		return nil, fmt.Errorf("cannot calculate tarball checksum")
+	}
+	checksums = append(checksums, fmt.Sprintf("sha256:%s", hex.EncodeToString(hasher.Sum(nil))))
+
+	// if no output has been specified
+	if len(targetUri) == 0 {
+		// prints to the stdout
+		fmt.Print(string(content[:]))
+	} else {
+		// otherwise, if the path does not implement an URI scheme (i.e. is a file path)
+		if !strings.Contains(targetUri, "://") {
+			targetUri, err = filepath.Abs(targetUri)
+			core.CheckErr(err, "cannot obtain the absolute output path")
+			ext := filepath.Ext(targetUri)
+			if len(ext) == 0 || ext != ".tar" {
+				core.RaiseErr("output path must contain a filename with .tar extension")
+			}
+			// creates target directory
+			err = os.MkdirAll(filepath.Dir(targetUri), 0755)
+			if err != nil {
+				return checksums, err
+			}
+		}
+		core.InfoLogger.Printf("writing package tarball to %s", targetUri)
+		err = resx.WriteFile(content, targetUri, targetCreds)
+		if err != nil {
+			return checksums, err
+		}
+	}
+	return checksums, nil
+}
+
+// Import a package tar archive into the local registry
+// uri: the uri of the package to import (can be file path or S3 bucket uri)
+// creds: the credentials to connect to the endpoint if it is authenticated S3 in the format user:password
+// localPath: if specified, it downloads the remote files to a target folder
+func (r *LocalRegistry) Import(uri []string, creds string, v data.VerifyHandler, allowedAuthors []string, flags uint8) error {
+	for _, fPath := range uri {
+		if err := r.importTar(fPath, creds, v, allowedAuthors, flags); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *LocalRegistry) importTar(uri, creds string, v data.VerifyHandler, allowedAuthors []string, flags uint8) error {
+	core.InfoLogger.Printf("reading => %s\n", uri)
+	tarBytes, err := resx.ReadFile(uri, creds)
+	if err != nil {
+		return err
+	}
+	tmp, err := core.NewTempDir(r.ArtHome)
+	if err != nil {
+		return err
+	}
+	core.InfoLogger.Printf("untarring => %s\n", uri)
+	err = core.Untar(bytes.NewReader(tarBytes), tmp)
+	if err != nil {
+		return err
+	}
+	// loop through extracted packages
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		return err
+	}
+	// load the repository index
+	repoIndex, err := loadIndexFromPath(tmp)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		// if the entry is a package seal
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") && !strings.Contains(entry.Name(), "repository.json") {
+			// Name() returns filename without path
+			sealFilename := entry.Name()
+			// load the package seal
+			seal, err2 := r.loadSeal(filepath.Join(tmp, sealFilename))
+			if err2 != nil {
+				return fmt.Errorf("cannot load package seal: %s", err2)
+			}
+			packageName, err2 := getPackageName(*repoIndex, seal)
+			if err2 != nil {
+				return fmt.Errorf("cannot parse package name: %s", err2)
+			}
+			// works out the path to the package zip file
+			packageFilename := filepath.Join(tmp, fmt.Sprintf("%s.zip", seal.Manifest.Ref))
+			core.InfoLogger.Printf("importing => %s\n", packageName.FullyQualifiedNameTag())
+			if err2 = r.Add(packageFilename, packageName, seal); err2 != nil {
+				// cleanup tmp folder
+				_ = os.RemoveAll(tmp)
+				// return error
+				return err2
+			}
+			// if a validation function has been provided
+			if v != nil {
+				// validate package before importing it
+				if err = v(packageName, seal, packageFilename, allowedAuthors, flags); err != nil {
+					err2 = r.Remove([]string{packageName.FullyQualifiedNameTag()})
+					if err2 != nil {
+						core.WarningLogger.Printf("cannot clean up package %s after failing validation: %s\n", packageName, err2)
+					}
+					return err
+				}
+			}
+		}
+	}
+	// cleanup tmp folder
+	_ = os.RemoveAll(tmp)
+	return nil
+}
+
+// -----------------
+// utility functions
+// -----------------
+
+// load the repository.json index file from a path
+func loadIndexFromPath(path string) (*LocalRegistry, error) {
+	repos := new(LocalRegistry)
+	repoBytes, err := os.ReadFile(filepath.Join(path, "repository.json"))
+	if err != nil {
+		return nil, fmt.Errorf("cannot read repository index in tar archive: %s", err)
+	}
+	err = json.Unmarshal(repoBytes, repos)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal repository index in tar archive: %s", err)
+	}
+	return repos, nil
+}
+
+// given the ID of a package, returns the package name with the last available tag (avoid latest)
+func getPackageName(repoIx LocalRegistry, seal *data.Seal) (*core.PackageName, error) {
+	// compute the package Id as a hex encoded hash of the seal
+	pkgId, err := seal.PackageId()
+	if err != nil {
+		return nil, err
+	}
+	for _, repo := range repoIx.Repositories {
+		for _, pack := range repo.Packages {
+			if pack.Id == pkgId {
+				tag := ""
+				if len(pack.Tags) > 0 {
+					// pick the last tag
+					tag = pack.Tags[len(pack.Tags)-1]
+				}
+				return core.ParseName(fmt.Sprintf("%s:%s", repo.Repository, tag))
+			}
+		}
+	}
+	return nil, fmt.Errorf("either the seal or repository index content are corrupted, " +
+		"the seal checksum does not match any entry held in the repository index")
+}
+
+// remove the files associated with a Package
+func (r *LocalRegistry) removeFiles(pack *Package, artHome string) error {
+	// remove the zip file
+	err := os.Remove(fmt.Sprintf("%s/%s.zip", core.RegistryPath(artHome), pack.FileRef))
+	if err != nil {
+		return err
+	}
+	// remove the json file
+	return os.Remove(fmt.Sprintf("%s/%s.json", core.RegistryPath(artHome), pack.FileRef))
+}
+
+// the fully qualified name of the json Seal file in the local localReg
+func (r *LocalRegistry) regDirJsonFilename(uniqueIdName string) string {
+	return fmt.Sprintf("%s/%s.json", core.RegistryPath(r.ArtHome), uniqueIdName)
+}
+
+// the fully qualified name of the zip file in the local localReg
+func (r *LocalRegistry) regDirZipFilename(uniqueIdName string) string {
+	return fmt.Sprintf("%s/%s.zip", core.RegistryPath(r.ArtHome), uniqueIdName)
+}
+
+// find the package specified by its id
+func (r *LocalRegistry) findPackageByRepoAndId(name *core.PackageName, id string) *Package {
+	for _, repository := range r.Repositories {
+		rep := fmt.Sprintf("%s/%s/%s", name.Domain, name.Group, name.Name)
+		if rep == repository.Repository {
+			for _, pack := range repository.Packages {
+				if pack.Id == id {
+					return pack
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (r *LocalRegistry) findPackageByRepo(name *core.PackageName) *Package {
+	for _, repository := range r.Repositories {
+		rep := fmt.Sprintf("%s/%s/%s", name.Domain, name.Group, name.Name)
+		if rep == repository.Repository {
+			for _, pack := range repository.Packages {
+				for _, tag := range pack.Tags {
+					if name.Tag == tag {
+						return pack
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (r *LocalRegistry) findPackageById(id string) *Package {
+	for _, repository := range r.Repositories {
+		for _, pack := range repository.Packages {
+			if pack.Id == id {
+				return pack
+			}
+		}
+	}
+	return nil
+}
+
+// returns the package coordinates in the repository as (repo index, package index)
+func (r *LocalRegistry) artCoords(name *core.PackageName, art *Package) (int, int) {
+	for rIx, repository := range r.Repositories {
+		rep := fmt.Sprintf("%s/%s/%s", name.Domain, name.Group, name.Name)
+		if rep == repository.Repository {
+			for aIx, pack := range repository.Packages {
+				if pack.Id == art.Id {
+					return rIx, aIx
+				}
+			}
+		}
+	}
+	return -1, -1
+}
+
+// remove all tags from the specified Package
+func (r *LocalRegistry) unTagAll(name *core.PackageName) {
+	if packages, exists := r.GetPackagesByName(name); exists {
+		// then it has to untag it, leaving a dangling package
+		for _, pack := range packages {
+			for _, tag := range pack.Tags {
+				pack.Tags = core.RemoveElement(pack.Tags, tag)
+			}
+		}
+	}
+	// persist changes
+	r.save()
+}
+
+// remove a given tag from an Package
+func (r *LocalRegistry) unTag(name *core.PackageName, tag string) {
+	pkg := r.FindPackageByName(name)
+	if pkg != nil {
+		pkg.Tags = core.RemoveElement(pkg.Tags, tag)
+	}
+}
+
+func (r *LocalRegistry) removePackageById(a []*Package, id string) []*Package {
+	i := -1
+	// find the value to remove
+	for ix := 0; ix < len(a); ix++ {
+		if strings.Contains(a[ix].Id, id) {
+			i = ix
+			break
+		}
+	}
+	if i == -1 {
+		return a
+	}
+	// Remove the element at index i from a.
+	a[i] = a[len(a)-1] // Copy last element to index i.
+	a[len(a)-1] = nil  // Erase last element (write zero value).
+	a = a[:len(a)-1]   // Truncate slice.
+	return a
+}
+
+func (r *LocalRegistry) removeRepoByName(a []*Repository, name *core.PackageName) []*Repository {
+	i := -1
+	// find an package with the specified tag
+	for ix := 0; ix < len(a); ix++ {
+		if a[ix].Repository == name.FullyQualifiedName() {
+			i = ix
+			break
+		}
+	}
+	if i == -1 {
+		return a
+	}
+	// Remove the element at index i from a.
+	a[i] = a[len(a)-1] // Copy last element to index i.
+	a[len(a)-1] = nil  // Erase last element (write zero value).
+	a = a[:len(a)-1]   // Truncate slice.
+	return a
+}
+
+func (r *LocalRegistry) removeRepo(a []*Repository, repo Repository) []*Repository {
+	i := -1
+	// find an package with the specified tag
+	for ix := 0; ix < len(a); ix++ {
+		if a[ix].Repository == repo.Repository {
+			i = ix
+			break
+		}
+	}
+	if i == -1 {
+		return a
+	}
+	// Remove the element at index i from a.
+	a[i] = a[len(a)-1] // Copy last element to index i.
+	a[len(a)-1] = nil  // Erase last element (write zero value).
+	a = a[:len(a)-1]   // Truncate slice.
+	return a
+}
+
+// return the LocalRegistry full file name
+func (r *LocalRegistry) file() string {
+	return filepath.Join(core.RegistryPath(r.ArtHome), "repository.json")
+}
+
+// save the state of the LocalRegistry
+func (r *LocalRegistry) save() error {
+	regBytes := core.ToJsonBytes(r)
+	err := os.WriteFile(r.file(), regBytes, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("fail to update local registry metadata: %s", err)
+	}
+	return nil
+}
+
+// Load the content of the LocalRegistry
+func (r *LocalRegistry) Load() error {
+	var (
+		regBytes []byte
+		err      error
+	)
+	// check if localRepo file exist
+	_, err = os.Stat(r.file())
+	if err != nil {
+		// then assume localRepo.json is not there: try and create it
+		return r.save()
+	} else {
+		regBytes, err = os.ReadFile(r.file())
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(regBytes, r)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// find the Repository specified by name
+func (r *LocalRegistry) findRepository(name *core.PackageName) *Repository {
+	// find repository using package name
+	for _, repository := range r.Repositories {
+		if repository.Repository == name.FullyQualifiedName() {
+			return repository
+		}
+	}
+	// find repository using package Id
+	for _, repository := range r.Repositories {
+		for _, artie := range repository.Packages {
+			if strings.Contains(artie.Id, name.Name) {
+				return repository
+			}
+		}
+	}
+	return nil
+}
+
+// moveDanglingToRepo move the passed in dangling package to the repo specified by the target name
+func (r *LocalRegistry) moveDanglingToRepo(srcPackage *Package, targetName string) error {
+	// check the package is dangling
+	srcRepo := r.findRepositoryByPackageId(srcPackage.Id)
+	if srcRepo == nil {
+		return fmt.Errorf("cannot find repository for package Id %6s", srcPackage.Id)
+	}
+	if srcRepo != nil && len(srcRepo) > 1 || len(srcRepo) == 0 {
+		return fmt.Errorf("the package with Id %6s is not in the dangling repository", srcPackage.Id)
+	}
+	// parse the target name
+	tgtName, err := core.ParseName(targetName)
+	if err != nil {
+		return fmt.Errorf("invalid target package name %s", targetName)
+	}
+	// check if the target name already exists in the target repo
+	tgtPackage := r.FindPackageByName(tgtName)
+	if tgtPackage != nil {
+		// cannot override this package with dangling
+		return fmt.Errorf("package name %s already exists, use a name that is not in use or re-tag or delete the existing package", targetName)
+	}
+	// check if the target repo exists
+	tgtRepo := r.findRepository(tgtName)
+	// if it does not
+	if tgtRepo == nil {
+		// creates a new repo
+		tgtRepo = &Repository{
+			Repository: tgtName.FullyQualifiedName(),
+			Packages:   []*Package{},
+		}
+		// add the repo to the local registry
+		r.Repositories = append(r.Repositories, tgtRepo)
+	}
+	// remove the package from the dangling repo
+	srcRepo[0].Packages = r.removePackageById(srcRepo[0].Packages, srcPackage.Id)
+	// update the src package tag
+	srcPackage.Tags = []string{tgtName.Tag}
+	// add the package  to the target repo
+	tgtRepo.Packages = append(tgtRepo.Packages, srcPackage)
+	return nil
+}
+
+func (r *LocalRegistry) getPackageFiles() ([]string, error) {
+	var files []string
+	registryRoot := filepath.Join(core.RegistryPath(r.ArtHome))
+	fileInfo, err := os.ReadDir(registryRoot)
+	if err != nil {
+		return files, err
+	}
+
+	for _, file := range fileInfo {
+		// only find json and zip files
+		if !file.IsDir() && (strings.HasSuffix(file.Name(), ".json") || strings.HasSuffix(file.Name(), ".zip")) {
+			files = append(files, filepath.Join(registryRoot, file.Name()))
+		}
+	}
+	return files, nil
+}
+
+// findRepositoryByPackageId find the repository a package with a specific Id is in
+func (r *LocalRegistry) findRepositoryByPackageId(id string) []Repository {
+	var repos []Repository
+	for _, repository := range r.Repositories {
+		for _, p := range repository.Packages {
+			if p.Id == id {
+				repos = append(repos, *repository)
+			}
+		}
+	}
+	return repos
+}
+
+func (r *LocalRegistry) findRepositoryIxByPackageId(id string) []int {
+	var ix []int
+	for rix, repository := range r.Repositories {
+		for _, p := range repository.Packages {
+			if p.Id == id {
+				ix = append(ix, rix)
+			}
+		}
+	}
+	return ix
+}
+
+// rmPackage removes a package from a slice
+func rmPackage(a []*Package, value *Package) []*Package {
+	i := -1
+	// find the value to remove
+	for ix := 0; ix < len(a); ix++ {
+		if a[ix] == value {
+			i = ix
+			break
+		}
+	}
+	if i == -1 {
+		return a
+	}
+	// Remove the element at index i from a.
+	a[i] = a[len(a)-1] // Copy last element to index i.
+	a[len(a)-1] = nil  // Erase last element (write zero value).
+	a = a[:len(a)-1]   // Truncate slice.
+	return a
+}

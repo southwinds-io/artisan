@@ -1,0 +1,25 @@
+---
+{{ range => "ACME" }}
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ % "ISSUER" }}
+spec:
+  acme:
+    server: {{ % "SERVER" }}
+    externalAccountBinding:
+      keyID: {{ % "EABKEYID" }}
+      keySecretRef:
+        name: {{ % "ISSUER" }}-eab
+        key: secret
+    privateKeySecretRef:
+      name: {{ % "ISSUER" }}{{ if %!= "ISSUER" "ZERO-SSL" }}
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token-zero
+            key: api-token
+  {{ end }}
+{{ end }}
+...

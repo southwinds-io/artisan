@@ -1,0 +1,94 @@
+---
+labels:
+  author: SouthWinds Tech Ltd
+  application: Artisan Command Line Interface
+  description: The configuration package manager command line interface
+  architecture: AMD64
+
+env:
+  CGO_ENABLED: 0
+  GOARCH: amd64
+  APP_VERSION: 1.0.7
+  BUILD_VERSION: ${APP_VERSION}-${ARTISAN_REF}
+
+profiles:
+  - name: linux
+    default: true
+    application: artisan
+    type: content/binary
+    license: Apache Version 2
+    labels:
+      platform: linux
+    env:
+      GOOS: linux
+    run:
+      - $(build-linux-amd64)
+    target: bin/linux/amd64
+
+  - name: mac
+    application: artisan
+    type: content/binary
+    license: Apache Version 2
+    labels:
+      platform: darwin
+    env:
+      GOOS: darwin
+    run:
+      - $(build-mac)
+    target: bin/darwin/amd64/art
+
+  - name: windows
+    application: artisan
+    type: content/binary
+    env:
+      GOOS: windows
+    run:
+      - $(build-win)
+    target: bin/windows/art.exe
+
+functions:
+  - name: build-mac
+    description: builds the Artisan CLI for MacOS
+    env:
+      GOOS: darwin
+    run:
+      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+
+  - name: build-mac-arm
+    description: builds the Artisan CLI for MacOS
+    env:
+      GOOS: darwin
+      GOARCH: arm64
+    run:
+      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+
+  - name: build-linux-amd64
+    description: builds the Artisan CLI for the linux platform
+    env:
+      GOOS: linux
+      GOARCH: amd64
+    run:
+      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+
+  - name: build-linux-arm64
+    description: builds the Artisan CLI for the linux platform
+    env:
+      GOOS: linux
+      GOARCH: arm64
+    run:
+      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+
+  - name: build-win
+    description: builds the Artisan CLI for the linux platform
+    env:
+      GOOS: windows
+    run:
+      - go build -ldflags="-X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+
+  - name: build-all
+    description: creates zip files with the cli binaries for the different platforms
+    run:
+      - $(build-linux)
+      - $(build-mac)
+      - $(build-mac-arm)
+...
