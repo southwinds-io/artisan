@@ -36,6 +36,19 @@ type Secret struct {
 
 type Secrets []*Secret
 
+func (list Secrets) Get(ix int) *Secret {
+	return list[ix]
+}
+
+func (list Secrets) GetByName(name string) *Secret {
+	for _, v := range list {
+		if strings.EqualFold(v.Name, name) {
+			return v
+		}
+	}
+	return nil
+}
+
 func (list Secrets) Len() int { return len(list) }
 
 func (list Secrets) Swap(i, j int) { list[i], list[j] = list[j], list[i] }
