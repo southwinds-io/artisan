@@ -332,9 +332,11 @@ func (b *Builder) setUniqueIdName(repo *git.Repository) {
 		if err != nil {
 			// the git repo has no commits yet so cannot get a valid commit hashtag
 			hash = ""
+			b.commit = ""
+		} else {
+			hash = fmt.Sprintf("-%s", ref.Hash().String()[:10])
+			b.commit = ref.Hash().String()
 		}
-		b.commit = ref.Hash().String()
-		hash = fmt.Sprintf("-%s", ref.Hash().String()[:10])
 	}
 	// get the current time
 	t := time.Now().UTC()
