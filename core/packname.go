@@ -231,12 +231,12 @@ func validDNS(dns string) (valid bool) {
 }
 
 func validGroup(group string) (valid bool) {
-	valid, _ = regexp.MatchString(`^([a-zA-Z0-9_-]{0,62}\/?)*$`, group)
+	valid, _ = regexp.MatchString(`^([a-zA-Z0-9._-]{0,62}\/?)*$`, group)
 	return
 }
 
 func validName(name string) (valid bool) {
-	valid, _ = regexp.MatchString(`^([a-zA-Z0-9_-]{0,62})*$`, name)
+	valid, _ = regexp.MatchString(`^([a-zA-Z0-9._-]{0,62})*$`, name)
 	return
 }
 
