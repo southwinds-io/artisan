@@ -20,6 +20,7 @@ package core
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -105,6 +106,11 @@ func Curl(uri string, method string, token string, validCodes []int, payload str
 	// create http client with timeout
 	client := &http.Client{
 		Timeout: time.Duration(int64(timeoutSecs)) * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // allows for self-signed https and http endpoints
+			},
+		},
 	}
 	// issue http request
 	resp, err := client.Do(req)
