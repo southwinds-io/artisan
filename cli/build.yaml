@@ -52,7 +52,7 @@ functions:
     env:
       GOOS: darwin
     run:
-      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+      - go build -trimpath -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
 
   - name: build-mac-arm
     description: builds the Artisan CLI for MacOS
@@ -60,7 +60,7 @@ functions:
       GOOS: darwin
       GOARCH: arm64
     run:
-      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+      - go build -trimpath -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
 
   - name: build-linux-amd64
     description: builds the Artisan CLI for the linux platform
@@ -68,7 +68,7 @@ functions:
       GOOS: linux
       GOARCH: amd64
     run:
-      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+      - go build -trimpath -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
 
   - name: build-linux-arm64
     description: builds the Artisan CLI for the linux platform
@@ -76,14 +76,14 @@ functions:
       GOOS: linux
       GOARCH: arm64
     run:
-      - go build -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+      - go build -trimpath -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
 
   - name: build-win
     description: builds the Artisan CLI for the linux platform
     env:
       GOOS: windows
     run:
-      - go build -ldflags="-X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
+      - go build -trimpath -ldflags="-X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
 
   - name: build-all
     description: creates zip files with the cli binaries for the different platforms
