@@ -75,6 +75,9 @@ func (c *EnvPackageCmd) Run(cmd *cobra.Command, args []string) {
 			}
 			input = fx.Input
 		} else {
+			if len(manifest.Functions) == 0 {
+				core.RaiseErr(fmt.Sprintf("no functions found in package manifest"))
+			}
 			for i, function := range manifest.Functions {
 				if i == 0 {
 					input = function.Input
