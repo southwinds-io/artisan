@@ -70,6 +70,9 @@ func (c *EnvPackageCmd) Run(cmd *cobra.Command, args []string) {
 		if len(args) == 2 {
 			fxName := args[1]
 			fx := manifest.Fx(fxName)
+			if fx == nil {
+				core.RaiseErr(fmt.Sprintf("function %s either does not exist or it has not been exported", fxName))
+			}
 			input = fx.Input
 		} else {
 			for i, function := range manifest.Functions {
