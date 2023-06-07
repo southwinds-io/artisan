@@ -29,6 +29,7 @@ import (
 // UtilSysInfoCmd gets linux system information
 type UtilSysInfoCmd struct {
 	Cmd           *cobra.Command
+	family        bool
 	vendor        bool
 	osVersion     bool
 	kernelVersion bool
@@ -42,6 +43,7 @@ func NewUtilSysInfoCmd() *UtilSysInfoCmd {
 			Long:  `gets linux system information, this command only works on linux systems`,
 		},
 	}
+	c.Cmd.Flags().BoolVar(&c.family, "family", false, "--family; returns the Operating System family (i.e. debian, rhel")
 	c.Cmd.Flags().BoolVar(&c.vendor, "vendor", false, "--vendor; returns the Operating System vendor")
 	c.Cmd.Flags().BoolVar(&c.kernelVersion, "kernel-version", false, "--kernel-version; returns the OS Kernel version")
 	c.Cmd.Flags().BoolVar(&c.osVersion, "os-version", false, "--os-version; returns the OS version")
@@ -52,16 +54,31 @@ func NewUtilSysInfoCmd() *UtilSysInfoCmd {
 func (c *UtilSysInfoCmd) Run(_ *cobra.Command, _ []string) {
 	var si sysinfo.SysInfo
 	si.GetSysInfo()
+	if c.family {
+		switch si.OS.Vendor {
+		case "centos":
+		case "rocky":
+		case "rhel":
+			fmt.Printf("rhel")
+			return
+		case "debian":
+		case "ubuntu":
+			fmt.Printf("debian")
+			return
+		}
+		fmt.Printf("unknown")
+		return
+	}
 	if c.vendor {
-		fmt.Printf("{{%s}}", si.OS.Vendor)
+		fmt.Printf("%s", si.OS.Vendor)
 		return
 	}
 	if c.osVersion {
-		fmt.Printf("{{%s}}", si.OS.Version)
+		fmt.Printf("%s", si.OS.Version)
 		return
 	}
 	if c.kernelVersion {
-		fmt.Printf("{{%s}}", si.Kernel.Version)
+		fmt.Printf("%s", si.Kernel.Version)
 		return
 	}
 	data, err := json.MarshalIndent(&si, "", "  ")
