@@ -57,11 +57,14 @@ func (c *UtilSysInfoCmd) Run(_ *cobra.Command, _ []string) {
 	if c.family {
 		switch si.OS.Vendor {
 		case "centos":
+			fallthrough
 		case "rocky":
+			fallthrough
 		case "rhel":
 			fmt.Printf("rhel")
 			return
 		case "debian":
+			fallthrough
 		case "ubuntu":
 			fmt.Printf("debian")
 			return
