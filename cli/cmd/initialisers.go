@@ -69,7 +69,8 @@ func InitialiseUtilCommand(artHome string) *UtilCmd {
 	utilB64Cmd := NewUtilBase64Cmd()
 	utilStampCmd := NewUtilStampCmd()
 	utilCurlCmd := NewUtilCurlCmd()
-	waitCmd := NewWaitCmd()
+	utilWaitCmd := NewUtilWaitCmd()
+	utilSysInfoCmd := NewUtilSysInfoCmd()
 	langCmd := InitialiseLangCommand(artHome)
 	serveCmd := NewServeCmd()
 	replaceCmd := NewUtilReplaceCmd()
@@ -79,7 +80,8 @@ func InitialiseUtilCommand(artHome string) *UtilCmd {
 		utilNameCmd.Cmd,
 		utilB64Cmd.Cmd,
 		utilStampCmd.Cmd,
-		waitCmd.Cmd,
+		utilWaitCmd.Cmd,
+		utilSysInfoCmd.Cmd,
 		utilCurlCmd.Cmd,
 		langCmd.Cmd,
 		serveCmd.Cmd,

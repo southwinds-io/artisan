@@ -23,16 +23,16 @@ import (
 	"southwinds.dev/artisan/core"
 )
 
-// WaitCmd wait until the response payload contains a specific value
-type WaitCmd struct {
+// UtilWaitCmd wait until the response payload contains a specific value
+type UtilWaitCmd struct {
 	Cmd      *cobra.Command
 	attempts int
 	filter   string
 	creds    string
 }
 
-func NewWaitCmd() *WaitCmd {
-	c := &WaitCmd{
+func NewUtilWaitCmd() *UtilWaitCmd {
+	c := &UtilWaitCmd{
 		Cmd: &cobra.Command{
 			Use:   "wait [flags] URI",
 			Short: "wait until either the an HTTP GET returns a value or the maximum attempts have been reached",
@@ -47,7 +47,7 @@ func NewWaitCmd() *WaitCmd {
 	return c
 }
 
-func (c *WaitCmd) Run(cmd *cobra.Command, args []string) {
+func (c *UtilWaitCmd) Run(cmd *cobra.Command, args []string) {
 	token := ""
 	if len(c.creds) > 0 {
 		uname, pwd := core.UserPwd(c.creds)

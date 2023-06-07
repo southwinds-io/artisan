@@ -19,10 +19,15 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/zcalusic/sysinfo"
+	"log"
 	"os"
+	"regexp"
 	"southwinds.dev/artisan/build"
 	"southwinds.dev/artisan/core"
+	"southwinds.dev/artisan/data"
 	"southwinds.dev/artisan/i18n"
 	"southwinds.dev/artisan/merge"
 	"southwinds.dev/artisan/registry"
@@ -206,4 +211,41 @@ func TestNewSpecPush(t *testing.T) {
 func TestRemoveAll(t *testing.T) {
 	l := registry.NewLocalRegistry("")
 	l.RemoveAll()
+}
+
+func TestEnvPackage(t *testing.T) {
+	var input *data.Input
+	name, err := core.ParseName("play/installer:1.0b1")
+	core.CheckErr(err, "invalid package name: %s", name)
+	local := registry.NewLocalRegistry("")
+	manifest := local.GetManifest(name)
+	fxName := "deploy-horizon"
+	fx := manifest.Fx(fxName)
+	input = fx.Input
+	// add the credentials to download the package
+	input.SurveyRegistryCreds(name.Group, name.Name, "", name.Domain, false, true, merge.NewEnVarFromSlice([]string{}))
+	input.ToEnvFile()
+}
+
+func TestUReplace(t *testing.T) {
+	r, _ := regexp.Compile(`"paths":\[".*"\]`)
+	content, _ := os.ReadFile("file.yaml")
+	replaceString := `"paths":["/mnt/k3s-storage"]`
+	if len(replaceString) > 0 {
+		replaced := r.ReplaceAll(content, []byte(replaceString))
+		fmt.Println(string(replaced))
+	}
+}
+
+func TestOS(t *testing.T) {
+	var si sysinfo.SysInfo
+
+	si.GetSysInfo()
+
+	data, err := json.MarshalIndent(&si, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(data))
 }
