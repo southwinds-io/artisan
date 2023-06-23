@@ -53,8 +53,9 @@ type BuildFile struct {
 	// a list of functions containing a list of commands to execute
 	Functions []*Function `yaml:"functions"`
 	// include other build files
-	Includes []interface{} `yaml:"includes"`
-	SKU      string        `yaml:"sku"`
+	Includes []interface{}     `yaml:"includes"`
+	SKU      string            `yaml:"sku"`
+	X        map[string]string `json:"x,omitempty"`
 }
 
 func (b *BuildFile) GetEnv() map[string]string {
@@ -116,7 +117,6 @@ type Profile struct {
 	Target string `yaml:"target"`
 	// merged target if existed, internal use only
 	MergedTarget string
-	X            []string `json:"x,omitempty"`
 }
 
 // GetEnv gets a slice of string with each element containing key=value
@@ -189,6 +189,7 @@ func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error
 		ev = merge.NewEnvVarOS()
 	}
 	ev.Merge(merge.NewEnVarFromMap(buildFile.Env))
+	ev.Merge(buildFile.GetXEnv())
 	ev.Replace()
 	buildFile.Env = ev.Vars()
 	buildFile.Env[core.ArtOS] = runtime.GOOS
@@ -238,6 +239,13 @@ func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error
 	return buildFile, nil
 }
 
+func (b *BuildFile) GetXEnv() *merge.Envar {
+	env := merge.NewEnVarEmpty()
+	for key, value := range b.X {
+		env.Set(fmt.Sprintf("ART_X_%s", strings.ToUpper(key)), value)
+	}
+	return env
+}
 func (b *BuildFile) Validate() (bool, error) {
 	// checks any binding has a corresponding input
 	for _, fx := range b.Functions {
