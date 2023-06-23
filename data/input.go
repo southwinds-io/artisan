@@ -353,9 +353,9 @@ func (i *Input) ToEnvFile() []byte {
 	for _, v := range i.Var {
 		buf.WriteString(toEnvComments(v.Description))
 		if len(v.Default) > 0 {
-			buf.WriteString(fmt.Sprintf("%s=%s\n", v.Name, v.Default))
+			buf.WriteString(fmt.Sprintf("%s=%s\n\n", v.Name, v.Default))
 		} else {
-			buf.WriteString(fmt.Sprintf("%s=\n", v.Name))
+			buf.WriteString(fmt.Sprintf("%s=\n\n", v.Name))
 		}
 	}
 	buf.WriteString("\n# ===================================================\n")
@@ -372,7 +372,9 @@ func toEnvComments(value string) string {
 	out := new(bytes.Buffer)
 	values := strings.Split(value, "\n")
 	for _, v := range values {
-		out.WriteString(fmt.Sprintf("# %s\n", v))
+		if len(v) > 0 {
+			out.WriteString(fmt.Sprintf("# %s\n", v))
+		}
 	}
 	return out.String()
 }
