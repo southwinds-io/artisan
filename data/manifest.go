@@ -82,83 +82,113 @@ type Network struct {
 	Rules  []string `yaml:"rules"`
 }
 
-func (n *Network) IPGroups(ipList ...string) (map[string]*Group, error) {
-	var err error
-	var upperLimit = 1000000
-	if hasDuplicates(ipList) {
-		return nil, fmt.Errorf("IPs in list must be unique")
+type GroupInfo struct {
+	Group string
+	Tags  []string
+	Min   int
+	Max   int
+	IPs   []string
+}
+
+type GroupsInfo []GroupInfo
+
+func (gs *GroupsInfo) GroupIx(name string) int {
+	var gsi []GroupInfo = *gs
+	for ix, info := range gsi {
+		if strings.EqualFold(info.Group, name) {
+			return ix
+		}
 	}
-	result := make(map[string]*Group)
-	ipIx, total := 0, 0
+	return -1
+}
+
+func (n *Network) parseGroups() (GroupsInfo, error) {
+	result := make(GroupsInfo, 0)
 	for _, group := range n.Groups {
 		parts := strings.Split(group, ":")
 		groupName := parts[0]
 		tags := strings.Split(parts[1], ",")
 		var min, max int
-		min, err = strconv.Atoi(parts[2])
+		min, err := strconv.Atoi(parts[2])
 		if err != nil {
 			return nil, fmt.Errorf("invalid minimum value in network group '%s'", groupName)
 		}
 		if strings.EqualFold(parts[3], "*") {
-			max = upperLimit
+			max = 1000
 		} else {
 			max, err = strconv.Atoi(parts[3])
 			if err != nil {
 				return nil, fmt.Errorf("invalid maximum value in network group '%s'", groupName)
 			}
 		}
-		total = total + max
-		// totalMin = totalMin + min
-		g := &Group{
-			Tags: tags,
-			IPs:  make([]string, 0),
+		result = append(result, GroupInfo{
+			Group: groupName,
+			Tags:  tags,
+			Min:   min,
+			Max:   max,
+		})
+	}
+	return result, nil
+}
+
+func parseGroup(group string) (groupName string, tags []string, min, max int, err error) {
+	parts := strings.Split(group, ":")
+	groupName = parts[0]
+	tags = strings.Split(parts[1], ",")
+	min, err = strconv.Atoi(parts[2])
+	if err != nil {
+		return groupName, tags, min, max, fmt.Errorf("invalid minimum value in network group '%s'", groupName)
+	}
+	if strings.EqualFold(parts[3], "*") {
+		max = 1000 // upper limit is 1000 nodes
+	} else {
+		max, err = strconv.Atoi(parts[3])
+		if err != nil {
+			return groupName, tags, min, max, fmt.Errorf("invalid maximum value in network group '%s'", groupName)
 		}
-		// allocates the minimum
+	}
+	return
+}
+func (n *Network) AllocateIPs(ipList ...string) (GroupsInfo, error) {
+	if hasDuplicates(ipList) {
+		return nil, fmt.Errorf("IPs in list must be unique")
+	}
+	var ipIx int
+	g, err := n.parseGroups()
+	if err != nil {
+		return nil, err
+	}
+	// first tries and allocates the minimum requirement
+	for _, group := range n.Groups {
+		name, _, min, _, parseErr := parseGroup(group)
+		if parseErr != nil {
+			return nil, err
+		}
+		infoIx := g.GroupIx(name)
 		for i := 0; i < min; i++ {
-			if len(ipList) <= ipIx {
-				return nil, fmt.Errorf("not enough IPs, need at least %d", ipIx+1)
-			}
-			g.IPs = append(g.IPs, ipList[ipIx])
-			result[groupName] = g
+			g[infoIx].IPs = append(g[infoIx].IPs, ipList[ipIx])
 			ipIx++
 		}
 	}
-	// if there are IPs left
-	for ipIx < len(ipList) {
-		// allocate the rest
-		for _, group := range n.Groups {
-			parts := strings.Split(group, ":")
-			if strings.EqualFold(parts[2], parts[3]) {
-				continue
-			}
-			if ipIx < len(ipList) {
-				if result[parts[0]] == nil {
-					result[parts[0]] = &Group{
-						Tags: strings.Split(parts[1], ","),
-						IPs:  make([]string, 0),
-					}
-				}
-				var length = 0
-				if !strings.EqualFold(parts[3], "*") {
-					length, err = strconv.Atoi(parts[3])
-				} else {
-					length = upperLimit
-				}
-				if err != nil {
-					return nil, err
-				}
-				if len(result[parts[0]].IPs) >= length {
-					continue
-				}
-				result[parts[0]].IPs = append(result[parts[0]].IPs, ipList[ipIx])
+	// now tries and allocates the maximum requirement
+	for _, group := range n.Groups {
+		name, _, min, max, parseErr := parseGroup(group)
+		if parseErr != nil {
+			return nil, err
+		}
+		infoIx := g.GroupIx(name)
+		topLimit := max
+		if max > (len(ipList) - ipIx) {
+			topLimit = len(ipList) - ipIx
+		}
+		for i := 0; i < topLimit; i++ {
+			if max > min {
+				g[infoIx].IPs = append(g[infoIx].IPs, ipList[ipIx])
 				ipIx++
 			}
 		}
 	}
-	if total < len(ipList) {
-		return nil, fmt.Errorf("too many IPs, %d surplus IPs found", len(ipList)-total)
-	}
-	return result, nil
+	return g, nil
 }
 
 type Group struct {
