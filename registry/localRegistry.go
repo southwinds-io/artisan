@@ -1136,6 +1136,11 @@ func (r *LocalRegistry) ExportPackage(names []core.PackageName, sourceCreds, tar
 			if err != nil {
 				return nil, err
 			}
+			// if pull was successful then get the repo reference
+			repo = r.findRepository(&name)
+			if repo == nil {
+				return nil, fmt.Errorf("cannot get package %s, check it is in the local registry", name.FullyQualifiedNameTag())
+			}
 		} else {
 			pack = r.FindPackageByName(&name)
 		}
