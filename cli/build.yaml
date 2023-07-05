@@ -47,14 +47,15 @@ profiles:
     target: bin/windows/art.exe
 
 functions:
-  - name: build-mac
+  - name: build-darwin-amd64
     description: builds the Artisan CLI for MacOS
     env:
       GOOS: darwin
+      GOARCH: amd64
     run:
       - go build -trimpath -ldflags="-w -s -X 'southwinds.dev/artisan/core.Version=${BUILD_VERSION} (community)'" -o bin/${GOOS}/${GOARCH}/art -v
 
-  - name: build-mac-arm
+  - name: build-darwin-arm64
     description: builds the Artisan CLI for MacOS
     env:
       GOOS: darwin
@@ -88,7 +89,8 @@ functions:
   - name: build-all
     description: creates zip files with the cli binaries for the different platforms
     run:
-      - $(build-linux)
-      - $(build-mac)
-      - $(build-mac-arm)
+      - $(build-linux-amd64)
+      - $(build-linux-arm64)
+      - $(build-darwin-amd64)
+      - $(build-darwin-arm64)
 ...
