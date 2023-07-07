@@ -41,7 +41,7 @@ func NewUtilExtractCmd() *UtilExtractCmd {
 			Use:     "extract [flags]",
 			Short:   "extracts text between specified prefix and suffix, it should be used only with pipes",
 			Long:    `extracts text between specified prefix and suffix, it should be used only with pipes`,
-			Example: "cat your-file.txt | extract --prefix AAA --suffix $ -n 1",
+			Example: "cat your-file.txt | art u extract --prefix AAA --suffix $ -n 1",
 			Args:    cobra.ExactArgs(0),
 		},
 	}
