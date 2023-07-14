@@ -110,7 +110,8 @@ func runPackageFx(runtimeName, packageName, fxName, containerName, artRegistryUs
 	env.Add(core.ArtPackageFQDN, packageName)
 	env.Add(core.ArtFxName, fxName)
 	env.Add(core.ArtRegUser, artRegistryUser)
-	env.Add(core.ArtRegPassword, artRegistryPwd)
+	env.Add(core.ArtRegPassword1, artRegistryPwd)
+	env.Add(core.ArtRegPassword2, artRegistryPwd)
 	// adds debug mode
 	if len(os.Getenv(core.ArtDebug)) > 0 {
 		env.Add(core.ArtDebug, "true")
