@@ -54,7 +54,8 @@ func NewUtilExtractCmd() *UtilExtractCmd {
 
 func (c *UtilExtractCmd) Run(cmd *cobra.Command, args []string) {
 	// captures information from the standard input
-	info, _ := os.Stdin.Stat()
+	info, err := os.Stdin.Stat()
+	core.CheckErr(err, "cannot read from stdin")
 	// check that the standard input is not a character device file - i.e. one with which the Driver communicates
 	// by sending and receiving single characters (bytes, octets)
 	if (info.Mode() & os.ModeCharDevice) == os.ModeCharDevice {

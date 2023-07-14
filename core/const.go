@@ -38,9 +38,10 @@ const (
 	// ArtRegUser the name of the env variable that holds the artisan registry user to authenticate with a remote registry
 	// when registry related commands are executed and no specific credentials are provided via command flag
 	ArtRegUser = "ART_REG_USER"
-	// ArtRegPassword the name of the env variable that holds the artisan registry password to authenticate with a remote registry
+	// ArtRegPassword1 the name of the env variable that holds the artisan registry password to authenticate with a remote registry
 	// when registry related commands are executed and no specific credentials are provided via command flag
-	ArtRegPassword = "ART_REG_PWD"
+	ArtRegPassword1 = "ART_REG_PWD"
+	ArtRegPassword2 = "ART_REG_PASS"
 	// ArtDefaultHome the default artisan home
 	ArtDefaultHome = ""
 

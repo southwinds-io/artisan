@@ -148,7 +148,11 @@ func RegUserPwd(creds string) (user, pwd string) {
 	if len(creds) == 0 {
 		// try and get them from the environment
 		user = os.Getenv(ArtRegUser)
-		pwd = os.Getenv(ArtRegPassword)
+		pwd = os.Getenv(ArtRegPassword1)
+		if len(pwd) == 0 {
+			// try alternative password variable
+			pwd = os.Getenv(ArtRegPassword2)
+		}
 		// if successful
 		if len(user) > 0 && len(pwd) > 0 {
 			// return user and pwd

@@ -531,15 +531,10 @@ func (r *LocalRegistry) List(artHome string, extended bool) {
 	core.CheckErr(err, "failed to flush output")
 }
 
-func (r *LocalRegistry) GetNetwork(packageName string, functionName string) (*data.Network, error) {
-	pkg, err := core.ParseName(packageName)
-	if err != nil {
-		return nil, err
-	}
+func (r *LocalRegistry) GetNetwork(pkg *core.PackageName, functionName string) (*data.Network, error) {
 	p := r.FindPackageByName(pkg)
 	if p == nil {
-		return nil, nil // if no package is found it should bypass network check
-		// return nil, fmt.Errorf("cannot find package '%s'", packageName)
+		return nil, fmt.Errorf("cannot find package '%s' in local registry, cannot check for network function", pkg.FullyQualifiedNameTag())
 	}
 	seal, err := r.GetSeal(p)
 	if err != nil {
@@ -547,7 +542,7 @@ func (r *LocalRegistry) GetNetwork(packageName string, functionName string) (*da
 	}
 	fx := seal.Manifest.Fx(functionName)
 	if fx == nil {
-		return nil, fmt.Errorf("function '%s' not found in package '%s'", functionName, packageName)
+		return nil, fmt.Errorf("function '%s' not found in package '%s'", functionName, pkg.FullyQualifiedNameTag())
 	}
 	if fx.Network == nil {
 		// not a network function, then returns
