@@ -63,3 +63,8 @@ func (list Secrets) Less(i, j int) bool {
 	}
 	return si_lower < sj_lower
 }
+
+func (list Secrets) Append(s *Secret) Secrets {
+	list = append(list, s)
+	return list
+}

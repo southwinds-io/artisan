@@ -62,5 +62,10 @@ func (list Vars) GetByName(name string) *Var {
 	return nil
 }
 
+func (list Vars) Append(v *Var) Vars {
+	list = append(list, v)
+	return list
+}
+
 type VerifyHandler func(name *core.PackageName, seal *Seal, path string, authorisedAuthors []string, flags uint8) error
 type RunHandler func(name *core.PackageName, fx string, seal *Seal) error
