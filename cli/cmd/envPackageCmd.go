@@ -26,7 +26,6 @@ import (
 	"southwinds.dev/artisan/core"
 	"southwinds.dev/artisan/data"
 	"southwinds.dev/artisan/i18n"
-	"southwinds.dev/artisan/merge"
 	"southwinds.dev/artisan/registry"
 
 	"os"
@@ -39,6 +38,7 @@ type EnvPackageCmd struct {
 	buildFilePath string
 	stdout        *bool
 	out           string
+	file          string
 	artHome       string
 }
 
@@ -55,6 +55,7 @@ func NewEnvPackageCmd(artHome string) *EnvPackageCmd {
 	}
 	c.Cmd.Flags().StringVarP(&c.buildFilePath, "build-file-path", "b", "", "--build-file-path=. or -b=.; the path to an artisan build.yaml file from which to pick required inputs")
 	c.Cmd.Flags().StringVarP(&c.out, "output", "o", "env", "--output yaml or -o yaml; the output format (e.g. env, json, yaml)")
+	c.Cmd.Flags().StringVarP(&c.file, "file", "f", ".env", "--file my-function or -f my-function; the name of the environment file created (note that the extension is driven by the -o flag)")
 	c.stdout = c.Cmd.Flags().Bool("stdout", false, "prints the output to the console")
 	c.Cmd.Run = c.Run
 	return c
@@ -86,8 +87,6 @@ func (c *EnvPackageCmd) Run(cmd *cobra.Command, args []string) {
 				}
 			}
 		}
-		// add the credentials to download the package
-		input.SurveyRegistryCreds(name.Group, name.Name, "", name.Domain, false, true, merge.NewEnVarFromSlice([]string{}))
 	} else if len(args) < 2 {
 		i18n.Raise("", i18n.ERR_INSUFFICIENT_ARGS)
 	} else if len(args) > 2 {
@@ -119,11 +118,11 @@ func (c *EnvPackageCmd) Run(cmd *cobra.Command, args []string) {
 		case "yaml":
 			fallthrough
 		case "yml":
-			filename = "env.yaml"
+			filename = fmt.Sprintf("%s.yaml", c.file)
 		case "json":
-			filename = "env.json"
+			filename = fmt.Sprintf("%s.json", c.file)
 		default:
-			filename = ".env"
+			filename = fmt.Sprintf("%s", c.file)
 		}
 		err = os.WriteFile(filename, output, os.ModePerm)
 		core.CheckErr(err, "cannot write '%s' file", filename)
