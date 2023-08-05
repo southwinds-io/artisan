@@ -24,7 +24,6 @@ import (
 	"os"
 	"southwinds.dev/artisan/core"
 
-	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
@@ -90,10 +89,6 @@ func NewTemplMerger() (*TemplMerger, error) {
 func (t *TemplMerger) LoadTemplates(files []string) error {
 	m := make(map[string][]byte)
 	for _, file := range files {
-		// check the file is a template
-		if !(filepath.Ext(file) == ".tem" || filepath.Ext(file) == ".art") {
-			return fmt.Errorf("file '%s' is not a template file, artisan templates are either .tem or .art files\n", file)
-		}
 		// ensure the template path is absolute
 		path, err := core.AbsPath(file)
 		if err != nil {
@@ -113,9 +108,6 @@ func (t *TemplMerger) LoadTemplates(files []string) error {
 func (t *TemplMerger) LoadStringTemplates(templs map[string]string) error {
 	m := make(map[string][]byte)
 	for path, tmpl := range templs {
-		if !(strings.HasSuffix(path, ".art") || strings.HasSuffix(path, ".art")) {
-			return fmt.Errorf("template names must include either .art or .tem file extensions")
-		}
 		m[path] = t.transpileOperators([]byte(tmpl))
 	}
 	t.template = m
