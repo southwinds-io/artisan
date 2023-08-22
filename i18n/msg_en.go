@@ -37,4 +37,5 @@ var msg_en = map[I18NKey]string{
 	INFO_TAGGED:                     "tagged: %s\n",
 	LBL_LS_HEADER:                   "REPOSITORY\t TAG\t PACKAGE ID\t PACKAGE TYPE\t CREATED\t SIZE\t",
 	LBL_LS_HEADER_PLUS:              "REPOSITORY\t TAG\t PACKAGE ID\t PACKAGE TYPE\t CREATED\t SIZE\t AUTHOR\t",
+	LBL_MAN_FX_HEADER:               "NAME\t DESC\t NET\t INPUTS\t",
 }

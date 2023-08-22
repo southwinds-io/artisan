@@ -33,7 +33,7 @@ func InitialiseRootCmd(artHome string) *RootCmd {
 	pullCmd := NewPullCmd(artHome)
 	openCmd := NewOpenCmd(artHome)
 	flowCmd := InitialiseFlowCommand(artHome)
-	manifCmd := NewManifestCmd(artHome)
+	manifCmd := InitialiseManifestCmd(artHome)
 	exeCmd := NewExeCmd(artHome)
 	exeCCmd := NewExeCCmd(artHome)
 	envCmd := InitialiseEnvCommand(artHome)
@@ -59,6 +59,14 @@ func InitialiseRootCmd(artHome string) *RootCmd {
 		pruneCmd.Cmd,
 	)
 	return rootCmd
+}
+
+func InitialiseManifestCmd(home string) *ManifestCmd {
+	mCmd := NewManifestCmd()
+	mGetCmd := NewManifestGetCmd(home)
+	mFxCmd := NewManifestFxCmd(home)
+	mCmd.Cmd.AddCommand(mGetCmd.Cmd, mFxCmd.Cmd)
+	return mCmd
 }
 
 func InitialiseUtilCommand(artHome string) *UtilCmd {

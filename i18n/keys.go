@@ -37,4 +37,5 @@ const (
 	INFO_TAGGED                             = "INFO_TAGGED"
 	LBL_LS_HEADER                           = "LBL_LS_HEADER"
 	LBL_LS_HEADER_PLUS                      = "LBL_LS_HEADER_PLUS"
+	LBL_MAN_FX_HEADER                       = "LBL_MAN_FX_HEADER"
 )

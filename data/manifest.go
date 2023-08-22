@@ -21,8 +21,12 @@ package data
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"southwinds.dev/artisan/core"
+	"southwinds.dev/artisan/i18n"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 )
 
@@ -68,7 +72,7 @@ type Manifest struct {
 	SignPolicy string    `json:"sign_policy,omitempty"`
 }
 
-func (m Manifest) Fx(name string) *FxInfo {
+func (m *Manifest) Fx(name string) *FxInfo {
 	for _, fx := range m.Functions {
 		if fx.Name == name {
 			return fx
@@ -252,6 +256,46 @@ func (m *Manifest) ToMarkDownBytes(name string) []byte {
 		}
 	}
 	return b.Bytes()
+}
+
+func (m *Manifest) ListFxs(artHome string) {
+	// get a table writer for the stdout
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
+	defer func(w *tabwriter.Writer) {
+		_ = w.Flush()
+	}(w)
+	// print the header row
+	_, err := fmt.Fprintln(w, i18n.String(artHome, i18n.LBL_MAN_FX_HEADER))
+	core.CheckErr(err, "failed to write table header")
+	var (
+		inputs int
+		groups []string
+	)
+	for _, fx := range m.Functions {
+		if fx.Input != nil {
+			inputs = len(fx.Input.Env().Slice())
+		} else {
+			inputs = 0
+		}
+		if fx.Network != nil {
+			groups = fx.Network.Groups
+		} else {
+			groups = []string{}
+		}
+		_, err = fmt.Fprintln(w, fmt.Sprintf("%s\t %s\t %v\t %d\t",
+			fx.Name,
+			trim(fx.Description, 40),
+			groups,
+			inputs))
+		core.CheckErr(err, "failed to write output")
+	}
+}
+
+func trim(in string, i int) string {
+	if len(in) < i {
+		return in
+	}
+	return in[:i]
 }
 
 func format(content string) string {
