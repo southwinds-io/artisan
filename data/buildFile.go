@@ -156,10 +156,10 @@ func (p *Profile) Survey(bf *BuildFile) conf.Configuration {
 }
 
 func LoadBuildFile(path string) (*BuildFile, error) {
-	return LoadBuildFileWithEnv(path, nil)
+	return LoadBuildFileWithEnv(path, nil, false)
 }
 
-func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error) {
+func LoadBuildFileWithEnv(path string, ev conf.Configuration, isChild bool) (*BuildFile, error) {
 	if !filepath.IsAbs(path) {
 		abs, err := filepath.Abs(path)
 		if err != nil {
@@ -179,8 +179,10 @@ func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error
 	if err != nil {
 		return nil, fmt.Errorf("syntax error in build file %s: %s", path, err)
 	}
-	if ok, validErr := buildFile.Validate(); !ok {
-		return buildFile, validErr
+	if !isChild {
+		if ok, validErr := buildFile.Validate(); !ok {
+			return buildFile, validErr
+		}
 	}
 	if buildFile.Env == nil {
 		buildFile.Env = map[string]string{}
@@ -199,13 +201,31 @@ func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error
 		switch i := include.(type) {
 		case string:
 			file, _ := filepath.Abs(filepath.Join(filepath.Dir(buildFile.path), i))
-			child, err := LoadBuildFileWithEnv(file, ev)
+			child, err := LoadBuildFileWithEnv(file, ev, true)
 			if err != nil {
 				return nil, fmt.Errorf("build file include not found in path: %s, %s", file, err)
 			}
 			buildFile.Env = conf.MergeMaps(buildFile.Env, child.Env)
 			buildFile.Profiles = append(buildFile.Profiles, child.Profiles...)
 			buildFile.Functions = append(buildFile.Functions, child.Functions...)
+			if child.Input != nil {
+				if child.Input.Var != nil {
+					if buildFile.Input == nil {
+						buildFile.Input = &Input{
+							Var: Vars{},
+						}
+					}
+					buildFile.Input.Var = append(buildFile.Input.Var, child.Input.Var...)
+				}
+				if child.Input.Secret != nil {
+					if buildFile.Input == nil {
+						buildFile.Input = &Input{
+							Secret: Secrets{},
+						}
+					}
+					buildFile.Input.Secret = append(buildFile.Input.Secret, child.Input.Secret...)
+				}
+			}
 			buildFile.Labels = conf.MergeMaps(buildFile.Labels, child.Labels)
 		case []interface{}:
 			incl := true
@@ -224,7 +244,7 @@ func LoadBuildFileWithEnv(path string, ev conf.Configuration) (*BuildFile, error
 			}
 			if incl {
 				file, _ := filepath.Abs(filepath.Join(filepath.Dir(buildFile.path), i[0].(string)))
-				child, err := LoadBuildFileWithEnv(file, ev)
+				child, err := LoadBuildFileWithEnv(file, ev, true)
 				if err != nil {
 					return nil, err
 				}

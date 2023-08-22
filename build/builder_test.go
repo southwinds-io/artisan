@@ -20,6 +20,7 @@ package build
 
 import (
 	"southwinds.dev/artisan/core"
+	"southwinds.dev/artisan/merge"
 	"testing"
 )
 
@@ -27,4 +28,12 @@ func TestBuildContentOnly(t *testing.T) {
 	builder := NewBuilder("")
 	name, _ := core.ParseName("localhost:8080/lib/test1:1")
 	_ = builder.Build("", "", "", name, "", false, false, "test/test", "", "", "")
+}
+
+func TestInclude(t *testing.T) {
+	builder := NewBuilder("")
+	err := builder.Run("list", "include-test", false, merge.NewEnVarFromSlice([]string{"FOLDER=./"}))
+	if err != nil {
+		t.Fatal(err)
+	}
 }

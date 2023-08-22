@@ -1,0 +1,10 @@
+---
+functions:
+  - name: list
+    export: true
+    run:
+    - ls -la ${FOLDER}
+    input:
+      var:
+        - FOLDER
+...
