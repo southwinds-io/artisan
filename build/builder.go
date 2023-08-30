@@ -773,6 +773,11 @@ func (b *Builder) Execute(name *core.PackageName, function string, credentials s
 		env.Set(core.ArtPackageName, name.Name)
 		env.Set(core.ArtPackageTag, name.Tag)
 		env.Set(core.ArtFxName, function)
+		wd, err2 := os.Getwd()
+		if err2 != nil {
+			core.WarningLogger.Printf("failed to retrieve working directory: %s", err)
+		}
+		env.Set(core.ArtExeWd, wd)
 		// run the function on the open package
 		err = b.Run(function, path, interactive, env)
 		if err != nil {

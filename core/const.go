@@ -53,4 +53,6 @@ const (
 	ArtOS        = "ART_OS"
 	ArtArch      = "ART_ARCH"
 	ArtShell     = "ART_SHELL"
+	// ArtExeWd the path from where a package was run
+	ArtExeWd = "ART_EXE_WD"
 )
