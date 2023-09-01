@@ -357,9 +357,9 @@ func (i *Input) ToEnvFile() []byte {
 		}
 		buf.WriteString(toEnvComments(v.Description))
 		if len(v.Default) > 0 {
-			buf.WriteString(fmt.Sprintf("%s=\"%s\"\n\n", v.Name, v.Default))
+			buf.WriteString(fmt.Sprintf("%s=%s\n\n", v.Name, v.Default))
 		} else {
-			buf.WriteString(fmt.Sprintf("%s=\"\"\n\n", v.Name))
+			buf.WriteString(fmt.Sprintf("%s=\n\n", v.Name))
 		}
 	}
 	for ix, s := range i.Secret {
@@ -368,7 +368,7 @@ func (i *Input) ToEnvFile() []byte {
 			buf.WriteString("# -------\n")
 		}
 		buf.WriteString(toEnvComments(s.Description))
-		buf.WriteString(fmt.Sprintf("%s=\"\"\n", s.Name))
+		buf.WriteString(fmt.Sprintf("%s=\n", s.Name))
 	}
 	return buf.Bytes()
 }
