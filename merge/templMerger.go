@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"southwinds.dev/artisan/core"
 
 	"regexp"
@@ -105,6 +106,15 @@ func (t *TemplMerger) LoadTemplates(files []string) error {
 	return nil
 }
 
+func (t *TemplMerger) LoadTemplatesBytes(files map[string][]byte) error {
+	m := make(map[string][]byte)
+	for path, fileBytes := range files {
+		m[path] = t.transpileOperators(fileBytes)
+	}
+	t.template = m
+	return nil
+}
+
 func (t *TemplMerger) LoadStringTemplates(templs map[string]string) error {
 	m := make(map[string][]byte)
 	for path, tmpl := range templs {
@@ -148,11 +158,12 @@ func (t *TemplMerger) Merge(env *Envar) error {
 			}
 			t.file[path[0:len(path)-len(".tem")]] = merged
 		} else {
+			// any other extension (or no extension) is merged as an artisan template
 			merged, err = t.mergeART(ctx, path, file)
 			if err != nil {
 				return fmt.Errorf("cannot merge template: %s\n", err)
 			}
-			t.file[path[0:len(path)-len(".art")]] = merged
+			t.file[path[0:len(path)-len(filepath.Ext(path))]] = merged
 		}
 	}
 	return nil
@@ -260,4 +271,8 @@ func (t *TemplMerger) Save() error {
 		}
 	}
 	return nil
+}
+
+func (t *TemplMerger) GetFile(name string) []byte {
+	return t.file[name]
 }
