@@ -249,3 +249,7 @@ func TestOS(t *testing.T) {
 
 	fmt.Println(string(data))
 }
+
+func TestUpConf(t *testing.T) {
+	updateConf("image.yaml", []string{"labels:dog,cat,other", "triggers:cat|0.8|5"})
+}

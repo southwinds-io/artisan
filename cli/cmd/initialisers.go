@@ -82,6 +82,7 @@ func InitialiseUtilCommand(artHome string) *UtilCmd {
 	langCmd := InitialiseLangCommand(artHome)
 	serveCmd := NewServeCmd()
 	replaceCmd := NewUtilReplaceCmd()
+	upconfCmd := NewUpConfCmd()
 	utilCmd.Cmd.AddCommand(
 		utilPwdCmd.Cmd,
 		utilExtractCmd.Cmd,
@@ -94,6 +95,7 @@ func InitialiseUtilCommand(artHome string) *UtilCmd {
 		langCmd.Cmd,
 		serveCmd.Cmd,
 		replaceCmd.Cmd,
+		upconfCmd.Cmd,
 	)
 	return utilCmd
 }
