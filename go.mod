@@ -1,6 +1,6 @@
 module southwinds.dev/artisan
 
-go 1.19
+go 1.21
 
 replace southwinds.dev/os => ../os
 
