@@ -253,3 +253,31 @@ func TestOS(t *testing.T) {
 func TestUpConf(t *testing.T) {
 	updateConf("image.yaml", []string{"labels:dog,cat,other", "triggers:cat|0.8|5"})
 }
+
+func TestLog(t *testing.T) {
+	l, err := core.NewLog(".")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = l.Clear()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = l.New("test", []string{"Column1", "Column2", "Column3"})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = l.Add("test", []string{"Value1", "Value2", "Value3"})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = l.Add("test", []string{"Value4", "Value5", "Value6"})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = l.AddFile("config", "conf.yaml")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	l.Print()
+}

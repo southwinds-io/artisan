@@ -38,6 +38,7 @@ func InitialiseRootCmd(artHome string) *RootCmd {
 	exeCCmd := NewExeCCmd(artHome)
 	envCmd := InitialiseEnvCommand(artHome)
 	pruneCmd := NewPruneCmd(artHome)
+	logCmd := InitialiseLogCommand(artHome)
 	rootCmd.Cmd.AddCommand(
 		utilCmd.Cmd,
 		buildCmd.Cmd,
@@ -57,6 +58,7 @@ func InitialiseRootCmd(artHome string) *RootCmd {
 		exeCCmd.Cmd,
 		envCmd.Cmd,
 		pruneCmd.Cmd,
+		logCmd.Cmd,
 	)
 	return rootCmd
 }
@@ -98,6 +100,16 @@ func InitialiseUtilCommand(artHome string) *UtilCmd {
 		upconfCmd.Cmd,
 	)
 	return utilCmd
+}
+
+func InitialiseLogCommand(artHome string) *LogCmd {
+	logCmd := NewLogCmd()
+	logClearCmd := NewLogClearCmd(artHome)
+	logNewCmd := NewLogNewCmd(artHome)
+	logAddCmd := NewLogAddCmd(artHome)
+	logPrintCmd := NewLogPrintCmd(artHome)
+	logCmd.Cmd.AddCommand(logClearCmd.Cmd, logNewCmd.Cmd, logAddCmd.Cmd, logPrintCmd.Cmd)
+	return logCmd
 }
 
 func InitialiseEnvCommand(artHome string) *EnvCmd {
