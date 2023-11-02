@@ -43,6 +43,7 @@ func NewLogNewCmd(artHome string) *LogNewCmd {
 art new my-data -h "header1|header2|header3"
 
 NOTE: if a table is already defined it will be deleted and a warning issued
+Also note that if no table is defined, the name 'output' is used by default.
 `,
 		},
 	}
@@ -52,7 +53,10 @@ NOTE: if a table is already defined it will be deleted and a warning issued
 }
 
 func (c *LogNewCmd) Run(cmd *cobra.Command, args []string) {
-	if len(args) != 1 {
+	if len(args) == 0 {
+		args[0] = "output"
+	}
+	if len(args) > 1 {
 		core.RaiseErr("invalid arguments, expecting table name; got %d arguments instead", len(args))
 	}
 	l, err := core.NewLog(c.artHome)
