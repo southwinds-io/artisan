@@ -114,9 +114,7 @@ func (l *Log) Print() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("--- artisan log start ---")
-	fmt.Printf("%v\n", string(b[:]))
-	fmt.Println("--- artisan log end ---")
+	fmt.Printf("<ARTLOG>%v</ARTLOG>\n", string(b[:]))
 	return nil
 }
 
