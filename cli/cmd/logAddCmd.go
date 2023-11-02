@@ -28,6 +28,7 @@ import (
 type LogAddCmd struct {
 	Cmd     *cobra.Command
 	values  string
+	file    string
 	artHome string
 }
 
@@ -47,6 +48,7 @@ NOTE: if the number of values is greater than the number of headers then the sur
 		},
 	}
 	c.Cmd.Flags().StringVarP(&c.values, "values", "v", "", "-v v1|v2|v3...; a pipe separated list of table record values")
+	c.Cmd.Flags().StringVarP(&c.file, "file", "f", "", "-f conf.yaml; a path to a yaml or json file containing a map to import into the log")
 	c.Cmd.Run = c.Run
 	return c
 }
@@ -57,5 +59,11 @@ func (c *LogAddCmd) Run(cmd *cobra.Command, args []string) {
 	}
 	l, err := core.NewLog(c.artHome)
 	core.CheckErr(err, "cannot create logger")
-	core.CheckErr(l.New(args[0], strings.Split(c.values, "|")), "cannot add row in log table %s", args[0])
+	if len(c.values) > 0 && len(c.file) == 0 {
+		core.CheckErr(l.Add(args[0], strings.Split(c.values, "|")), "cannot add row in log table %s", args[0])
+	} else if len(c.values) == 0 && len(c.file) > 0 {
+		core.CheckErr(l.AddFile(args[0], c.file), "cannot add row in log table %s", args[0])
+	} else {
+		core.RaiseErr("only one of --file or --values flags can be set at one time")
+	}
 }

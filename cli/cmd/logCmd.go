@@ -45,7 +45,7 @@ art log new my-data -h "header1|header2|header3"
 art log add my-data -v "value1|value2|value3"writes structured data to the file system
 
 # add data from a yaml dictionary into the log
-art log import my-data -f my-data.yaml
+art log add my-data -f my-data.yaml
 
 # writes the content of the log to stdout
 art log print
