@@ -42,12 +42,12 @@ art log clear
 art log new my-data -h "header1|header2|header3"
 
 # writes a record in my-data table
-art log add my-data -v "value1|value2|value3"writes structured data to the file system
+art log add my-data -v "value1|value2|value3"
 
-# add data from a yaml dictionary into the log
+# adds data from a yaml dictionary into the log
 art log add my-data -f my-data.yaml
 
-# writes the content of the log to stdout
+# prints the content of the log to stdout
 art log print
 `,
 		},
