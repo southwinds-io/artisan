@@ -46,7 +46,7 @@ NOTE: if a table is already defined it will be deleted and a warning issued
 `,
 		},
 	}
-	c.Cmd.Flags().StringVarP(&c.headers, "headers", "h", "action", "-h h1|h2|h3...; a pipe separated list of table headers")
+	c.Cmd.Flags().StringVarP(&c.headers, "headers", "e", "action|result", "-h h1|h2|h3...; a pipe separated list of table headers")
 	c.Cmd.Run = c.Run
 	return c
 }
