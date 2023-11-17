@@ -54,7 +54,10 @@ NOTE: if the number of values is greater than the number of headers then the sur
 }
 
 func (c *LogAddCmd) Run(cmd *cobra.Command, args []string) {
-	if len(args) != 1 {
+	if len(args) == 0 {
+		args = append(args, "output")
+	}
+	if len(args) > 1 {
 		core.RaiseErr("invalid arguments, expecting table name; got %d arguments instead", len(args))
 	}
 	l, err := core.NewLog(c.artHome)

@@ -54,7 +54,7 @@ Also note that if no table is defined, the name 'output' is used by default.
 
 func (c *LogNewCmd) Run(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
-		args[0] = "output"
+		args = append(args, "output")
 	}
 	if len(args) > 1 {
 		core.RaiseErr("invalid arguments, expecting table name; got %d arguments instead", len(args))
